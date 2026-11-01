@@ -108,9 +108,7 @@ def register(mcp: FastMCP) -> None:
                 "elements": [],
                 "hint": "Provide room_number or room_external_id.",
             }
-        if room_external_id is not None and not valid_external_id(
-            room_external_id
-        ):
+        if room_external_id is not None and not valid_external_id(room_external_id):
             return {
                 "room": None,
                 "count": 0,

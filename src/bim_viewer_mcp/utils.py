@@ -128,9 +128,7 @@ async def post_json(
             timeout=timeout,
             trust_env=False,
         ) as client:
-            async with client.stream(
-                "POST", safe_path, json=payload
-            ) as response:
+            async with client.stream("POST", safe_path, json=payload) as response:
                 response.raise_for_status()
                 content = bytearray()
                 async for chunk in response.aiter_bytes():

@@ -114,15 +114,26 @@ CLEARANCE_CATEGORIES = {"electrical_panels"}
 # free-form field, value, or SQL is ever passed through. This tool returns
 # numbers, not externalIds, and performs no viewer action.
 WO_ALLOWED_STATUSES = {
-    "OPEN", "IN_PROGRESS", "WAITING_PARTS", "CLOSED", "CANCELED",
+    "OPEN",
+    "IN_PROGRESS",
+    "WAITING_PARTS",
+    "CLOSED",
+    "CANCELED",
 }
 # Lower number = more urgent (2 = high, 3 = normal, 4 = low), per the data
 # generator. No priority 1 exists in the data (the emergency tier was removed).
 WO_PRIORITY_WORDS = {"high", "normal", "low"}
 WO_ALLOWED_FAILURE_CLASSES = {
-    "LIGHTING", "ELECTRICAL", "HVAC", "PLUMBING", "FIRE_PROTECTION",
+    "LIGHTING",
+    "ELECTRICAL",
+    "HVAC",
+    "PLUMBING",
+    "FIRE_PROTECTION",
 }
 WO_ALLOWED_REPORTED_BY = {
-    "TENANT", "FACILITIES_TECH", "INSPECTOR", "VENDOR",
+    "TENANT",
+    "FACILITIES_TECH",
+    "INSPECTOR",
+    "VENDOR",
 }
 WO_ALLOWED_MEASURES = {"count", "cost"}

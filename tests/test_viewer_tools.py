@@ -54,16 +54,13 @@ def test_valid_external_id_rejects_bad(value: object) -> None:
 
 
 def test_sanitize_dedupes_and_drops_invalid() -> None:
-    result = sanitize_external_ids(
-        [GOOD_ID, "bad", GOOD_ID, GOOD_ID_2, 42, None]
-    )
+    result = sanitize_external_ids([GOOD_ID, "bad", GOOD_ID, GOOD_ID_2, 42, None])
     assert result == [GOOD_ID, GOOD_ID_2]
 
 
 def test_sanitize_caps_at_max_ids() -> None:
     many = [
-        f"{i:08x}-9364-48d7-b68b-6736718012c4-0005fbe8"
-        for i in range(MAX_IDS + 50)
+        f"{i:08x}-9364-48d7-b68b-6736718012c4-0005fbe8" for i in range(MAX_IDS + 50)
     ]
     assert len(sanitize_external_ids(many)) == MAX_IDS
 
