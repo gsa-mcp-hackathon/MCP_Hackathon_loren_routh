@@ -45,9 +45,11 @@ clear tool-choice.
   lighting), optionally by level and room.
 - `highlight_elements`, `isolate`, `zoom_to`, `reset` — the viewer actions.
 
-Two more tools exist in the server (`highlight_rooms`, implemented but untested
-by the gold set; `color_by`, a reserved stub that isn't implemented). We chose
-**not** to count these in the eval, to avoid overclaiming.
+One more tool is registered in the server but untested by the gold set
+(`highlight_rooms`, implemented); we chose **not** to count it in the eval, to
+avoid overclaiming. `color_by` is a **planned future tool** — defined in the
+tree but intentionally not registered, so it is not part of the server's tool
+surface.
 
 **Lesson:** Narrow, single-purpose tools beat one clever do-everything tool. The
 breadth comes from *combining* small tools, not from making any one of them

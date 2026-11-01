@@ -40,8 +40,10 @@ The pattern is **find, then act**. The four geometry resolve tools compute real
 bounding-box math server-side in Python, so spatial questions ("northern-most,"
 "nearest," "largest," "what's in this room," "is this clearance clear") are now
 first-class: resolve the element(s) by geometry, then highlight / isolate / zoom.
-Two registered tools are not exercised here and are excluded from all counts:
-`highlight_rooms` (implemented) and `color_by` (a reserved stub).
+One registered tool is not exercised here and is excluded from all counts:
+`highlight_rooms` (implemented). `color_by` is a **planned future tool** —
+defined in the tree but intentionally not registered, so it is not part of the
+server's tool surface.
 
 ## 2. Testing Methodology
 

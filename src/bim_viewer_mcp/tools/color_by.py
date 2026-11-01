@@ -1,7 +1,10 @@
-"""Tool: color_by — reserved for a future pass (accepted, not yet implemented).
+"""Tool: color_by — a planned future tool (defined, not yet registered).
 
-Kept in the vocabulary so an agent that calls it gets a clean, non-crashing
-"not implemented" rather than an error. The viewer's handler mirrors this.
+This module is kept in the tree as a design placeholder for a future pass, but
+it is intentionally NOT registered by `tools/__init__.py`: the server exposes
+only tools that actually do something, so a client's discovered tool list never
+includes a not-implemented stub. `register(mcp)` is retained so the feature can
+be turned on in one line once it is built.
 """
 
 from __future__ import annotations

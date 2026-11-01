@@ -60,7 +60,6 @@ async def test_viewer_tools_are_discoverable():
         "highlight_rooms",
         "isolate",
         "zoom_to",
-        "color_by",
         "reset",
         "find_elements",
         "find_by_category",
@@ -68,4 +67,5 @@ async def test_viewer_tools_are_discoverable():
         "find_extreme",
         "find_in_room",
         "find_clearance",
+        "find_workorders",
     } <= tool_names

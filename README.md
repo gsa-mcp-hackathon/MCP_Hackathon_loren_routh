@@ -49,12 +49,17 @@ MCP_Hackathon_submission/
 │   ├── tools/                 #   ONE FILE PER TOOL
 │   │   ├── find_elements.py       resolve — by cost (top-N / threshold)
 │   │   ├── find_by_category.py    resolve — by named category / level / room
+│   │   ├── find_in_room.py        resolve — equipment inside a given room
+│   │   ├── find_nearest.py        resolve — nearest N of a category to a point
+│   │   ├── find_extreme.py        resolve — the largest / smallest of a category
+│   │   ├── find_clearance.py      resolve — an electrical panel's working clearance
+│   │   ├── find_workorders.py     resolve — work-order count / cost by filters
 │   │   ├── highlight_elements.py  act — color a set in place
 │   │   ├── highlight_rooms.py     act — color rooms
 │   │   ├── isolate.py             act — show only a set
 │   │   ├── zoom_to.py             act — move the camera
 │   │   ├── reset.py               act — clear and show the whole building
-│   │   └── color_by.py            (reserved stub)
+│   │   └── color_by.py            (planned future tool — not registered)
 │   ├── prompts/               #   Reusable conversation starters
 │   └── resources/             #   Server metadata the client can read
 │
@@ -111,12 +116,14 @@ Asset & cost data (synth) ─┘    (joined on asset id)      (asset API +      
 - The model and the synthetic asset/cost data are joined in Databricks on a shared
   asset id; each asset row carries the element's durable Revit UniqueId
   (`source_unique_id`), which is the viewer's `externalId`.
-- The **MCP server's resolve tools** (`find_elements`, `find_by_category`) ask the
-  `app/` backend for the elements that match a request and get back their
-  `externalId`s.
-- The **act tools** (`highlight_elements`, `isolate`, `zoom_to`, `reset`) POST a
-  validated command to the backend, which broadcasts it to every connected viewer
-  over a WebSocket — so the open 3D model lights up.
+- The **MCP server's resolve tools** (e.g. `find_elements`, `find_by_category`,
+  `find_in_room`, `find_clearance`, `find_workorders`) ask the `app/` backend
+  for the data that matches a request — the matching elements' `externalId`s, a
+  count, a cost, or a clearance verdict.
+- The **act tools** (`highlight_elements`, `highlight_rooms`, `isolate`,
+  `zoom_to`, `reset`) POST a validated command to the backend, which broadcasts
+  it to every connected viewer over a WebSocket — so the open 3D model lights
+  up.
 
 The asset/cost data is **synthetic, Maximo-style data**, not a connection to a real
 Maximo system.

@@ -12,7 +12,6 @@ viewer backend, which broadcasts it to every connected 3D viewer.
 from __future__ import annotations
 
 from bim_viewer_mcp.tools import (
-    color_by,
     find_by_category,
     find_clearance,
     find_elements,
@@ -27,6 +26,11 @@ from bim_viewer_mcp.tools import (
     zoom_to,
 )
 
+# color_by is a planned future tool. The module (color_by.py) is kept in the
+# tree, but it is intentionally NOT registered: the server exposes only tools
+# that actually do something, so a client's tool list has no not-implemented
+# stub. Register it here when the feature is built.
+
 
 def register_tools(mcp) -> None:
     """Register all tools with the MCP server."""
@@ -34,7 +38,6 @@ def register_tools(mcp) -> None:
     highlight_rooms.register(mcp)
     isolate.register(mcp)
     zoom_to.register(mcp)
-    color_by.register(mcp)
     reset.register(mcp)
     find_elements.register(mcp)
     find_by_category.register(mcp)

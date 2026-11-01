@@ -32,8 +32,7 @@ can only call these tools:
     find_extreme (largest/smallest by 3D volume, or northmost/southmost/
     eastmost/westmost), find_in_room (assets inside a room's 3D volume),
     find_clearance (checks an electrical panel's NEC 110.26 working clearance).
-  - action tools: highlight_elements, highlight_rooms, isolate, zoom_to, reset,
-    color_by.
+  - action tools: highlight_elements, highlight_rooms, isolate, zoom_to, reset.
 A plain highlight or room display must NOT move the camera; only zoom_to moves
 the camera.
 

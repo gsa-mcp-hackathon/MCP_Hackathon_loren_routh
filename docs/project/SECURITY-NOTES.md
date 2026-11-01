@@ -55,5 +55,6 @@ authentication and reviewed against the agency's ATO requirements.
   geometry (`wkt`), which the ID-only broadcast does not currently carry. The
   chat flow highlights rooms via the HTTP `/api/chat` response (which includes
   geometry); a pure MCP-driven room highlight would need the server to fetch and
-  include room geometry in the command. `color_by` is reserved and currently
-  returns `not_implemented` (fails safe).
+  include room geometry in the command. `color_by` is a **planned future tool**
+  (not registered by the MCP server); the demo viewer's command handler accepts
+  it defensively and returns `not_implemented` (fails safe).
