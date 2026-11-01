@@ -20,6 +20,7 @@ no duplicated SQL vocabulary.
 Credentials come from the user's .env via GSA_AI_ENV_PATH (USAI_API_KEY /
 USAI_BASE_URL / USAI_MODEL or AGENT_MODEL), exactly like the eval harness.
 """
+
 from __future__ import annotations
 
 import asyncio
