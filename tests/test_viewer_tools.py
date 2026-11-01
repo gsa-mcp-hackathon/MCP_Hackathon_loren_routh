@@ -143,7 +143,7 @@ async def test_post_json_sanitizes_upstream_error(monkeypatch) -> None:
     assert sensitive not in str(captured.value)
 
 
-# ── find_elements cost tool ────────────────────────────────────────────────
+# ── find_elements cost tool ───────────────────────────────────────────────────────────
 
 
 def test_find_elements_allowlists_are_closed() -> None:
@@ -215,7 +215,7 @@ async def test_find_elements_returns_empty_on_backend_failure(monkeypatch) -> No
     assert out["elements"] == []
 
 
-# ── spatial tools (find_nearest / find_extreme / find_in_room) ──────────────
+# ── spatial tools (find_nearest / find_extreme / find_in_room) ────────────────────────
 
 
 def test_spatial_allowlists_are_closed() -> None:
@@ -394,7 +394,7 @@ async def test_find_in_room_posts_room_number(monkeypatch) -> None:
     assert out["room"]["room_number"] == "54"
 
 
-# ── find_clearance tool ─────────────────────────────────────────────────────
+# ── find_clearance tool ───────────────────────────────────────────────────────────────
 
 
 @pytest.mark.asyncio

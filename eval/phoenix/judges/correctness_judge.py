@@ -84,13 +84,3 @@ def match_expected_response(input, output, expected) -> tuple[float, str, str]:
         output=output if isinstance(output, str) else str(output),
     )
     return classify(prompt, ["correct", "incorrect"], score_map=_CHOICES)
-    scores = evaluator.evaluate(
-        {
-            "input": query,
-            "output": output if isinstance(output, str) else str(output),
-            "expected": reference,
-        }
-    )
-    score = scores[0]
-    numeric = score.score if score.score is not None else 0.0
-    return (numeric, score.label or "", score.explanation or "")

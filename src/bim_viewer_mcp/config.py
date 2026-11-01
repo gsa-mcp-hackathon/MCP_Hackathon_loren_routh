@@ -18,7 +18,7 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # ── Transport ─────────────────────────────────────────────────────────────
+    # ── Transport ─────────────────────────────────────────────────────────────────────
     # "stdio"           — local subprocess (Claude Desktop / Claude Code / Zed)
     # "streamable-http" — remote HTTP server (containers, cloud deploys)
     #
@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     mcp_host: str = "0.0.0.0"
     mcp_port: int = 8000
 
-    # ── Viewer backend ────────────────────────────────────────────────────────
+    # ── Viewer backend ────────────────────────────────────────────────────────────────
     # Fixed, operator-controlled origin of the BIM viewer's web backend. The
     # tools POST validated viewer commands here; the backend broadcasts them to
     # every connected 3D viewer over its WebSocket. This is NEVER taken from a

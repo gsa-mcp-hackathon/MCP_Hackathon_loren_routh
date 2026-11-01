@@ -42,7 +42,7 @@ def sanitize_external_ids(values: object) -> list[str]:
     return out
 
 
-# ── find_elements query vocabulary ─────────────────────────────────────────
+# ── find_elements query vocabulary ────────────────────────────────────────────────────
 # The find_elements tool resolves a COST criterion to externalIds by asking the
 # viewer backend. The metric and operator are constrained to these fixed
 # allowlists (defense in depth; the backend enforces the same). No free-form
@@ -52,7 +52,7 @@ ALLOWED_OPS = {"top", "gt", "gte", "lt", "lte"}
 MAX_QUERY_LIMIT = 500
 
 
-# ── find_by_category query vocabulary ───────────────────────────────────────
+# ── find_by_category query vocabulary ─────────────────────────────────────────────────
 # The find_by_category tool resolves a CATEGORY (plus optional level/room) to
 # externalIds by asking the viewer backend. The category and level are
 # constrained to these fixed allowlists (defense in depth; the backend enforces
@@ -79,7 +79,7 @@ ALLOWED_LEVELS = {"Level 1", "Level 2", "Level 3", "Roof Level"}
 MAX_CATEGORY_LIMIT = 5000
 
 
-# ── spatial query vocabulary (find_nearest / find_extreme) ─────────────────
+# ── spatial query vocabulary (find_nearest / find_extreme) ────────────────────────────
 # The spatial tools rank elements by TRUE 3D geometry (bounding-box gap,
 # directional extreme, bbox volume) computed server-side in Python — Databricks
 # ST_* functions are 2D-only and would read two elements on different floors as
@@ -90,7 +90,7 @@ ALLOWED_SIZE_OPS = {"largest", "smallest"}
 MAX_SPATIAL_LIMIT = 50
 
 
-# ── find_in_room query vocabulary ──────────────────────────────────────────
+# ── find_in_room query vocabulary ─────────────────────────────────────────────────────
 # find_in_room resolves a room (by durable id or room number) to the tracked
 # assets whose bounding-box center falls inside the room's 3D volume (its WKT
 # footprint extruded from floor to ceiling). Membership math is done server-side
@@ -98,14 +98,14 @@ MAX_SPATIAL_LIMIT = 50
 MAX_INROOM_LIMIT = 500
 
 
-# ── find_clearance query vocabulary ────────────────────────────────────────
+# ── find_clearance query vocabulary ───────────────────────────────────────────────────
 # find_clearance checks NEC 110.26 working clearance for one electrical panel.
 # v1 covers electrical panels only; any other category returns "rule not
 # defined". The backend owns the NEC numbers and all geometry.
 CLEARANCE_CATEGORIES = {"electrical_panels"}
 
 
-# ── find_workorders query vocabulary ───────────────────────────────────────
+# ── find_workorders query vocabulary ──────────────────────────────────────────────────
 # find_workorders counts or cost-aggregates maintenance WORK ORDERS under
 # allowlisted filters by asking the viewer backend (POST api/workorders/find).
 # Every filter is constrained to these fixed lists (defense in depth; the
