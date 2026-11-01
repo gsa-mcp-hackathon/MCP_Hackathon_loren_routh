@@ -1,0 +1,19 @@
+# Dataset registry for the BIM Viewer MCP eval harness.
+#
+# Each dataset is a CSV with an input column (`query`) and a reference/output
+# column (`responses`) that describes the expected viewer action in words.
+# create_dataset.py reads this file to locate and validate each CSV before
+# uploading it to Phoenix.
+
+datasets:
+  bim-viewer-eval-0:
+    csv_path: datasets/bim-viewer-eval-0/examples/bim-viewer-eval-0.csv
+    input_keys:
+      - query
+    output_keys:
+      - responses
+    description: >-
+      BIM viewer control, 16 items. Natural-language viewer requests paired with
+      the expected tool + target set: cost/maintenance-driven highlights,
+      geometry-driven resolves (largest, northmost, nearest, in-room, panel
+      clearance), camera moves, resets, and out-of-scope refusals.

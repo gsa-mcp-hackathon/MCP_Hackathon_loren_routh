@@ -1,0 +1,73 @@
+# Virtual environments
+.venv/
+venv/
+
+# Environment variables (keep .env.example, never commit .env)
+.env
+deploy/**/.env
+deploy/**/eval.env
+
+# Deploy kit generated artifacts
+deploy/ibm/local-mcp-toolkit/_stage/
+deploy/ibm/local-mcp-toolkit/_toolkit.generated.yaml
+deploy/**/eval-results/
+
+
+# IBM Bob IDE directory (skills and MCP tool definition)
+.bob/
+
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Ruff
+.ruff_cache/
+
+# IDE / editor
+.vscode/
+.idea/
+.zed/
+*.swp
+
+# Ignore reference files for Databricks agnet 
+eval/databricks/agent_server/agent.py
+eval/databricks/agent_server/utils.py 
+
+# Local demo data — kept on disk so the viewer runs, not shipped to review.
+# The 3D model derivatives are large binaries and required only for the live
+# demo, not for grading the code.
+app/ModelDerivatives/
+app/static/**/*.glb
+app/static/**/*.bin
+
+# Local build inputs/outputs (synthetic data + Revit sources), never committed.
+JSON_Model_Data/
+RevitFiles/
+CA8888_REDUCED_UPLOAD/
+CA8888_SYNTHETIC_MAXIMO/
+ModelDerivatives/
+
+# Vendored CLI binary and throwaway test harnesses.
+databricks_cli_*/
+mcp-inspector-test/
+.venv-test/
+
+# GSA-provided sample templates (not our deliverable).
+MCP-hackathon-sample-*.pptx
+MCP-hackathon-sample-*.docx
+MCP-hackathon-sample-*.pdf
+
+# The submission's own generated slide deck (authored outside the repo).
+docs/project/BIM_Viewer_MCP_Deck.pptx
+

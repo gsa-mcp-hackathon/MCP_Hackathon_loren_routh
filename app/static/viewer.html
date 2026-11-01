@@ -1,0 +1,2571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1"
+  >
+
+  <title>CA8888 Model Viewer</title>
+
+  <link
+    rel="stylesheet"
+    href="https://developer.api.autodesk.com/modelderivative/v2/viewers/7.*/style.min.css"
+  >
+
+  <script src="https://developer.api.autodesk.com/modelderivative/v2/viewers/7.*/viewer3D.min.js"></script>
+
+  <style>
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: #1a1a1a;
+      color: #e6e6e6;
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+
+    #toolbar {
+      position: absolute;
+      top: 0;
+      right: 0;
+      left: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      height: 44px;
+      padding: 0 12px;
+      background: #2a2a2a;
+      border-bottom: 1px solid #444;
+    }
+
+    #project-name {
+      margin-right: 10px;
+      color: #ddd;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    #toolbar button {
+      padding: 6px 12px;
+      color: #eee;
+      background: #3a3a3a;
+      border: 1px solid #555;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+
+    #toolbar button:hover {
+      background: #4a6f91;
+    }
+
+    #toolbar button.model-hidden {
+      color: #999;
+      background: #222;
+      opacity: 0.55;
+    }
+
+    /* Levels dropdown menu in the toolbar. */
+    #levels-wrap {
+      position: relative;
+      display: inline-block;
+    }
+
+    #levels-menu {
+      position: absolute;
+      top: 36px;
+      left: 0;
+      z-index: 120;
+      min-width: 170px;
+      padding: 6px;
+      background: #2a2a2a;
+      border: 1px solid #555;
+      border-radius: 4px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    }
+
+    #levels-menu.hidden {
+      display: none;
+    }
+
+    #levels-menu .level-row {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 4px 6px;
+      color: #e6e6e6;
+      font-size: 12px;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+
+    #levels-menu .level-row:hover {
+      background: #3a3a3a;
+    }
+
+    #levels-menu .level-row input {
+      cursor: pointer;
+    }
+
+    #levels-menu .level-sep {
+      height: 1px;
+      margin: 5px 2px;
+      background: #444;
+    }
+
+    /* The viewer leaves room for the chat panel on the right. */
+    #viewer {
+      position: absolute;
+      top: 44px;
+      right: 340px;
+      bottom: 0;
+      left: 0;
+    }
+
+    #chat {
+      position: absolute;
+      top: 44px;
+      right: 0;
+      bottom: 0;
+      width: 340px;
+      z-index: 90;
+      display: flex;
+      flex-direction: column;
+      background: #242424;
+      border-left: 1px solid #444;
+    }
+
+    #chat-header {
+      padding: 8px 12px;
+      color: #ddd;
+      font-size: 12px;
+      font-weight: 600;
+      background: #2a2a2a;
+      border-bottom: 1px solid #444;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    #chat-header select {
+      background: #1d1d1d;
+      color: #ddd;
+      border: 1px solid #555;
+      border-radius: 4px;
+      font-size: 11px;
+      padding: 2px 4px;
+    }
+
+    #chat-log {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px;
+    }
+
+    .msg {
+      margin-bottom: 10px;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .msg .who {
+      display: block;
+      margin-bottom: 2px;
+      color: #8ab4d8;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .msg.user .who {
+      color: #cda;
+    }
+
+    .msg .body {
+      padding: 7px 9px;
+      color: #e6e6e6;
+      background: #333;
+      border-radius: 6px;
+    }
+
+    /* Rendered-markdown spacing inside an agent reply. */
+    .msg .body p {
+      margin: 0 0 6px 0;
+    }
+
+    .msg .body p:last-child {
+      margin-bottom: 0;
+    }
+
+    .msg .body ul {
+      margin: 4px 0;
+      padding-left: 18px;
+    }
+
+    .msg .body li {
+      margin: 2px 0;
+    }
+
+    .msg .body code {
+      padding: 1px 4px;
+      color: #e8d9a6;
+      background: #1f1f1f;
+      border-radius: 3px;
+      font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+      font-size: 10.5px;
+    }
+
+    .msg .body strong {
+      color: #f1f1f1;
+    }
+
+    .msg.user .body {
+      background: #3a4a5a;
+      white-space: pre-wrap;
+    }
+
+    .results {
+      margin-top: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .results-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 2px;
+    }
+
+    .results-count {
+      color: #9fb6c6;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .results-export {
+      padding: 3px 8px;
+      color: #dfe7ef;
+      background: #2f4a39;
+      border: 1px solid #45664f;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 10px;
+    }
+
+    .results-export:hover {
+      background: #3c5f49;
+    }
+
+    /* The list scrolls inside a fixed height so it never grows the chat. */
+    .results-list {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      max-height: 210px;
+      overflow-y: auto;
+      padding-right: 2px;
+    }
+
+    .results-more {
+      align-self: flex-start;
+      margin-top: 2px;
+      padding: 0;
+      color: #8ab4d8;
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 11px;
+      text-decoration: underline;
+    }
+
+    .result-item {
+      padding: 5px 8px;
+      color: #dfe7ef;
+      background: #2d3b47;
+      border: 1px solid #3f5666;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 11px;
+    }
+
+    .result-item:hover {
+      background: #3b5064;
+    }
+
+    .result-item .kind {
+      color: #8ab4d8;
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .result-item .price {
+      color: #9ad8a0;
+      font-variant-numeric: tabular-nums;
+    }
+
+    #chat-input-row {
+      display: flex;
+      gap: 6px;
+      padding: 8px;
+      background: #2a2a2a;
+      border-top: 1px solid #444;
+    }
+
+    #chat-input {
+      flex: 1;
+      padding: 7px 9px;
+      color: #eee;
+      background: #1e1e1e;
+      border: 1px solid #555;
+      border-radius: 4px;
+      font-size: 12px;
+      resize: none;
+    }
+
+    #chat-send {
+      padding: 7px 12px;
+      color: #eee;
+      background: #3a6f4a;
+      border: 1px solid #4c8a5e;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+
+    #chat-send:hover {
+      background: #4c8a5e;
+    }
+
+    #chat-send:disabled {
+      opacity: 0.5;
+      cursor: default;
+    }
+
+    #status {
+      position: absolute;
+      top: 52px;
+      left: 12px;
+      z-index: 100;
+      max-width: 55%;
+      padding: 6px 9px;
+      color: #ddd;
+      background: rgba(25, 25, 25, 0.82);
+      border-radius: 4px;
+      font-size: 11px;
+      pointer-events: none;
+      opacity: 1;
+      transition: opacity 0.6s ease;
+    }
+
+    #status.status-hidden {
+      opacity: 0;
+    }
+
+    /* Persistent badge showing where the model package is loaded from.
+       Pinned to the very top-right corner, above the chat panel's
+       Fast Agent/Genie toggle. Unlike #status it never fades, so the
+       source is confirmable at a glance. */
+    #model-source {
+      position: absolute;
+      top: 8px;
+      right: 12px;
+      z-index: 110;
+      padding: 5px 9px;
+      color: #cfe8ff;
+      background: rgba(20, 35, 55, 0.88);
+      border: 1px solid rgba(90, 150, 220, 0.55);
+      border-radius: 4px;
+      font-size: 11px;
+      pointer-events: none;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="toolbar">
+    <span id="project-name">CA8888</span>
+
+    <button id="toggle-mech" type="button">
+      MECH: On
+    </button>
+
+    <button id="fit-models" type="button">
+      Fit Models
+    </button>
+
+    <div id="levels-wrap">
+      <button id="levels-toggle" type="button">
+        Levels ▾
+      </button>
+      <div id="levels-menu" class="hidden"></div>
+    </div>
+
+    <button id="reset-view" type="button">
+      Reset Highlight
+    </button>
+  </div>
+
+  <div id="viewer"></div>
+
+  <div id="chat">
+    <div id="chat-header">
+      <span>Ask the Building</span>
+      <label id="chat-mode-label" title="Fast: an AI agent calls the viewer tools directly (quick). Genie: Databricks Genie natural-language Q&amp;A (richer, slower).">
+        <select id="chat-mode">
+          <option value="agent" selected>Fast agent</option>
+          <option value="genie">Genie</option>
+        </select>
+      </label>
+    </div>
+    <div id="chat-log"></div>
+    <div id="chat-input-row">
+      <textarea
+        id="chat-input"
+        rows="2"
+        placeholder="e.g. What is in Staff Room 57?"
+      ></textarea>
+      <button id="chat-send" type="button">Send</button>
+    </div>
+  </div>
+
+  <div id="status">Starting APS Viewer…</div>
+  <div id="model-source">Model source: …</div>
+
+  <script>
+    // ---------------------------------------------------------------- models
+    // MECH-only: the ARCH model and its toggle were removed when the project
+    // moved to a single MECH dataset end to end.
+    //
+    // MODEL_SOURCE picks where the SVF package is loaded FROM:
+    //   "databricks" -> /dbx-models/... : the backend proxies the package out
+    //                   of the UC Volume (the scalable, hosted path).
+    //   "local"      -> models/...      : the local ModelDerivatives mount
+    //                   (original fallback; keeps the Genie demo working offline).
+    // Both paths serve the identical bytes; flip this one value to switch.
+    const MODEL_SOURCE = "databricks";
+
+    const MODEL_SOURCES = {
+      databricks:
+        "dbx-models/mech/" +
+        "Resource/3D View/" +
+        "54872479-cfae-4636-b175-d7ae1b579b18-000f8409/" +
+        "{3D}.svf",
+      local:
+        "models/CA8888_MECH_ModelDerivative/" +
+        "Resource/3D View/" +
+        "54872479-cfae-4636-b175-d7ae1b579b18-000f8409/" +
+        "{3D}.svf",
+    };
+
+    // Human-readable label for the persistent on-screen source badge, so you
+    // can confirm at a glance where the package came from without dev tools.
+    const MODEL_SOURCE_LABELS = {
+      databricks: "Databricks UC Volume (/dbx-models)",
+      local: "Local files (/models)",
+    };
+
+    const MODEL_DEFINITIONS = [
+      {
+        key: "MECH",
+        label: "Mechanical",
+        buttonId: "toggle-mech",
+        url: MODEL_SOURCES[MODEL_SOURCE]
+      }
+    ];
+
+    // Theming colors (APS wants THREE.Vector4, 0..1 rgba). The 4th component
+    // is intensity: full (1.0) blends the color at maximum strength so the
+    // highlight reads clearly against the isolate() ghost. A hot, saturated
+    // orange-red at full intensity stands out far better than a mid orange.
+    const ELEMENT_COLOR = new THREE.Vector4(1.0, 0.45, 0.0, 1.0);   // hot orange
+    const ROOM_COLOR = { r: 0.25, g: 0.65, b: 1.0, a: 0.28 };       // translucent blue
+
+    let viewer = null;
+    const modelState = new Map();
+
+    // The APS model whose elements we highlight (MECH).
+    let primaryModel = null;
+
+    // externalId -> dbId for the primary model, built once after load.
+    let externalIdToDbId = {};
+    // Reverse lookup so a 3D-view click can resolve a dbId back to its durable
+    // externalId and share the same zoom-toggle key the result list uses.
+    let dbIdToExternalId = {};
+
+    // Currently highlighted dbIds, so Reset can clear exactly what we set.
+    let highlightedDbIds = [];
+
+    // Overlay scene name for translucent room volumes.
+    const ROOM_OVERLAY = "genie-room-overlay";
+    let roomOverlayActive = false;
+
+    // Overlay scene + colors for clearance-zone boxes.
+    const CLEARANCE_OVERLAY = "clearance-overlay";
+    let clearanceOverlayActive = false;
+    const CLEARANCE_CLEAR = { r: 0.25, g: 0.80, b: 0.35 };   // green: nothing intrudes
+    const CLEARANCE_VIOLATED = { r: 0.95, g: 0.30, b: 0.25 }; // red: something intrudes
+    const INTRUDER_COLOR = new THREE.Vector4(0.95, 0.30, 0.25, 1.0); // red tint
+
+    function setStatus(message, autoDismiss) {
+      const el = document.getElementById("status");
+      el.textContent = message;
+      el.classList.remove("status-hidden");
+      // Any new message cancels a pending fade so it is shown in full.
+      if (setStatus._fadeTimer) {
+        clearTimeout(setStatus._fadeTimer);
+        setStatus._fadeTimer = null;
+      }
+      // The welcome line is the only lingering message; fade it out so it
+      // never permanently sits over the viewer. Transient status (loading
+      // steps, errors, "Highlight cleared.") stays until replaced.
+      if (autoDismiss) {
+        setStatus._fadeTimer = setTimeout(function () {
+          el.classList.add("status-hidden");
+          setStatus._fadeTimer = null;
+        }, 6000);
+      }
+    }
+
+    function setButtonState(key) {
+      const state = modelState.get(key);
+      if (!state) {
+        return;
+      }
+      const button = document.getElementById(state.buttonId);
+      button.textContent = key + ": " + (state.visible ? "On" : "Off");
+      button.classList.toggle("model-hidden", !state.visible);
+    }
+
+    function toggleModel(key) {
+      const state = modelState.get(key);
+      if (!viewer || !state || !state.model) {
+        return;
+      }
+      state.visible = !state.visible;
+      if (state.visible) {
+        viewer.showModel(state.model, false);
+      } else {
+        viewer.hideModel(state.model, false);
+      }
+      setButtonState(key);
+      viewer.impl.invalidate(true, true, true);
+    }
+
+    let sharedGlobalOffset = null;
+
+    function loadModel(definition) {
+      return new Promise((resolve, reject) => {
+        const loadOptions = {
+          keepCurrentModels: true,
+          applyRefPoint: true
+        };
+
+        if (sharedGlobalOffset) {
+          loadOptions.globalOffset = sharedGlobalOffset;
+        }
+
+        viewer.loadModel(
+          definition.url,
+          loadOptions,
+          (model) => {
+            if (!sharedGlobalOffset) {
+              // globalOffset keeps multiple models aligned; we reuse the
+              // same offset to place room overlays in the model's space.
+              const offset = model.getData().globalOffset;
+              sharedGlobalOffset = {
+                x: offset.x,
+                y: offset.y,
+                z: offset.z
+              };
+              console.log(
+                "Shared globalOffset established from " +
+                definition.key + ":",
+                sharedGlobalOffset
+              );
+            }
+
+            modelState.set(definition.key, {
+              ...definition,
+              model,
+              visible: true
+            });
+
+            setButtonState(definition.key);
+            resolve(model);
+          },
+          (errorCode, errorMessage) => {
+            reject(new Error(
+              definition.label + " failed to load. Code: " +
+              errorCode + (errorMessage ? ". " + errorMessage : "")
+            ));
+          }
+        );
+      });
+    }
+
+    // Build the externalId -> dbId lookup once the model's property DB is ready.
+    function buildExternalIdMap(model) {
+      return new Promise((resolve) => {
+        model.getExternalIdMapping(
+          (mapping) => {
+            externalIdToDbId = mapping || {};
+            dbIdToExternalId = {};
+            Object.keys(externalIdToDbId).forEach((ext) => {
+              dbIdToExternalId[externalIdToDbId[ext]] = ext;
+            });
+            console.log(
+              "externalId map built:",
+              Object.keys(externalIdToDbId).length + " entries"
+            );
+            resolve();
+          },
+          (err) => {
+            console.warn("getExternalIdMapping failed:", err);
+            externalIdToDbId = {};
+            resolve();
+          }
+        );
+      });
+    }
+
+    // ------------------------------------------------------------------ levels
+    //
+    // Assign every geometry element to a building level, then let the Levels
+    // menu show/hide each level (plain visibility, like a category toggle — no
+    // ghosting). Level per element is resolved by precedence:
+    //   1. SVF Constraints -> Level              (most family instances)
+    //   2. SVF Constraints -> Reference Level    (ducts/pipes/linear MEP)
+    //   3. Databricks level_name by unique_id    (authoritative for curtain
+    //      walls, columns, walls, doors — multi-storey hosts the SVF omits)
+    //   4. Z-inference against mech_levels        (only the small point-like
+    //      fixtures still unassigned everywhere)
+    // Non-geometry container/type nodes and annotation (<...Separation>) lines
+    // are dropped. Only named levels appear in the menu.
+
+    const levelToDbIds = new Map();   // level name -> number[]
+    const levelVisible = new Map();   // level name -> bool
+    let levelElevations = [];         // [{name, elevation}], ascending
+    let dbElementLevels = {};         // unique_id -> level_name (from backend)
+    let invPlacement = null;          // viewer -> model-space transform
+
+    // The viewer -> model-space inverse of placementWithOffset, so a viewer-Z
+    // can be compared to the model-space level elevations. Works on THREE r71
+    // (getInverse) and modern THREE (.invert()).
+    function computeInvPlacement() {
+      const placement = modelPlacementMatrix();
+      if (!placement) {
+        return null;
+      }
+      const inv = new THREE.Matrix4();
+      if (typeof inv.getInverse === "function") {
+        inv.getInverse(placement);
+      } else {
+        inv.copy(placement).invert();
+      }
+      return inv;
+    }
+
+    // Load per-element levels + level elevations from the backend. Failure is
+    // non-fatal: we fall back to whatever the SVF/Z-inference can provide.
+    async function loadLevelData() {
+      try {
+        const res = await fetch("/api/levels");
+        if (!res.ok) {
+          throw new Error("levels fetch failed");
+        }
+        const data = await res.json();
+        dbElementLevels = (data && data.element_levels) || {};
+        levelElevations = ((data && data.levels) || [])
+          .filter((l) => l && typeof l.elevation === "number" && l.level_name)
+          .map((l) => ({ name: l.level_name, elevation: l.elevation }))
+          .sort((a, b) => a.elevation - b.elevation);
+      } catch (err) {
+        console.warn("level data unavailable; using SVF only");
+        dbElementLevels = {};
+        levelElevations = [];
+      }
+    }
+
+    // Z-inference: the highest level whose elevation is at or below z. Below the
+    // lowest level -> the lowest level. Only sound for small, point-like
+    // elements (see precedence note); tall/hosted elements use the DB level.
+    function levelForModelZ(z) {
+      if (!levelElevations.length) {
+        return null;
+      }
+      let chosen = levelElevations[0].name;
+      for (const lvl of levelElevations) {
+        if (z >= lvl.elevation) {
+          chosen = lvl.name;
+        } else {
+          break;
+        }
+      }
+      return chosen;
+    }
+
+    // Model-space center-Z of an element's geometry, or null if it has none.
+    function modelZForDbId(dbId, it, frags) {
+      const box = new THREE.Box3();
+      let found = false;
+      it.enumNodeFragments(dbId, (fragId) => {
+        const b = new THREE.Box3();
+        frags.getWorldBounds(fragId, b);
+        box.union(b);
+        found = true;
+      }, true);
+      if (!found || box.isEmpty()) {
+        return null;
+      }
+      const center = box.getCenter(new THREE.Vector3());
+      if (invPlacement) {
+        center.applyMatrix4(invPlacement);
+      }
+      return center.z;
+    }
+
+    function buildLevelMap(model) {
+      return new Promise((resolve) => {
+        const dbIds = Object.values(externalIdToDbId);
+        if (!dbIds.length) {
+          resolve();
+          return;
+        }
+        invPlacement = computeInvPlacement();
+        const it = model.getInstanceTree();
+        const frags = model.getFragmentList();
+
+        let remaining = dbIds.length;
+        let inferred = 0;
+        let dropped = 0;
+        const done = () => {
+          if (--remaining === 0) {
+            console.log(
+              "level map built:", levelToDbIds.size + " levels,",
+              inferred + " z-inferred,", dropped + " dropped"
+            );
+            resolve();
+          }
+        };
+
+        dbIds.forEach((dbId) => {
+          model.getProperties(
+            dbId,
+            (p) => {
+              const props = p.properties || [];
+              let svfLevel = null;
+              let refLevel = null;
+              let category = null;
+              for (const pr of props) {
+                if (
+                  pr.displayName === "Level" &&
+                  pr.displayCategory !== "__internalref__" &&
+                  typeof pr.displayValue === "string" &&
+                  pr.displayValue.trim()
+                ) {
+                  svfLevel = pr.displayValue.trim();
+                } else if (
+                  pr.displayName === "Reference Level" &&
+                  typeof pr.displayValue === "string" &&
+                  pr.displayValue.trim()
+                ) {
+                  refLevel = pr.displayValue.trim();
+                } else if (
+                  pr.displayName === "Category" &&
+                  pr.displayCategory === "__category__"
+                ) {
+                  category = pr.displayValue;
+                }
+              }
+
+              const valid = (v) => v && v !== "None";
+              let level = null;
+
+              // 1 & 2: authoritative SVF level.
+              if (valid(svfLevel)) {
+                level = svfLevel;
+              } else if (valid(refLevel)) {
+                level = refLevel;
+              } else {
+                const ext = dbIdToExternalId[dbId];
+                // 3: authoritative DB level (correct for multi-storey hosts).
+                const dbLevel = ext ? dbElementLevels[ext] : null;
+                if (valid(dbLevel)) {
+                  level = dbLevel;
+                } else {
+                  // Drop annotation boundary lines outright.
+                  const isSeparation = category && /separation/i.test(category);
+                  if (!isSeparation) {
+                    // 4: Z-inference, only if this node has real geometry.
+                    const z = modelZForDbId(dbId, it, frags);
+                    if (z !== null) {
+                      level = levelForModelZ(z);
+                      if (level) {
+                        inferred += 1;
+                      }
+                    }
+                  }
+                }
+              }
+
+              if (level) {
+                // Only bucket nodes that carry their OWN geometry. Container /
+                // ancestor nodes (e.g. the model root) must never go in a level
+                // list, or hiding that level cascades to the whole model.
+                let selfFrags = 0;
+                it.enumNodeFragments(dbId, () => { selfFrags += 1; }, false);
+                if (selfFrags > 0) {
+                  if (!levelToDbIds.has(level)) {
+                    levelToDbIds.set(level, []);
+                  }
+                  levelToDbIds.get(level).push(dbId);
+                } else {
+                  dropped += 1; // container/ancestor node, no own geometry
+                }
+              } else {
+                dropped += 1; // non-geometry container / annotation node
+              }
+              done();
+            },
+            () => done()
+          );
+        });
+      });
+    }
+
+    // Natural sort so "Level 2" < "Level 10", with named levels (e.g. "Roof
+    // Level") after numbered ones.
+    function sortedLevelNames() {
+      const names = Array.from(levelToDbIds.keys());
+      const num = (s) => {
+        const m = String(s).match(/(\d+)/);
+        return m ? parseInt(m[1], 10) : null;
+      };
+      return names.sort((a, b) => {
+        const na = num(a);
+        const nb = num(b);
+        if (na !== null && nb !== null && na !== nb) return na - nb;
+        return String(a).localeCompare(String(b));
+      });
+    }
+
+    // Apply a level's current visibility to its elements. Plain show/hide of
+    // self-geometry leaves — like a category toggle, no ghosting. (The level
+    // buckets contain only leaves that carry their own fragments, so hiding
+    // them never cascades to the whole model via a shared ancestor.)
+    function applyLevelVisibility(level) {
+      const dbIds = levelToDbIds.get(level) || [];
+      if (!dbIds.length) {
+        return;
+      }
+      if (levelVisible.get(level)) {
+        viewer.show(dbIds);
+      } else {
+        viewer.hide(dbIds);
+      }
+    }
+
+    function setLevelVisible(level, visible) {
+      levelVisible.set(level, visible);
+      applyLevelVisibility(level);
+      viewer.impl.invalidate(true, false, false);
+    }
+
+    function setAllLevels(visible) {
+      sortedLevelNames().forEach((lvl) => {
+        levelVisible.set(lvl, visible);
+        applyLevelVisibility(lvl);
+      });
+      viewer.impl.invalidate(true, false, false);
+      renderLevelsMenu();
+    }
+
+    // Build the dropdown contents from whatever levels the model actually has.
+    function renderLevelsMenu() {
+      const menu = document.getElementById("levels-menu");
+      menu.innerHTML = "";
+
+      const makeRow = (labelText, checked, onChange) => {
+        const row = document.createElement("label");
+        row.className = "level-row";
+        const cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.checked = checked;
+        cb.addEventListener("change", () => onChange(cb.checked));
+        const span = document.createElement("span");
+        span.textContent = labelText;
+        row.appendChild(cb);
+        row.appendChild(span);
+        return row;
+      };
+
+      const levels = sortedLevelNames();
+      const allOn = levels.every((lvl) => levelVisible.get(lvl));
+
+      menu.appendChild(
+        makeRow("All levels", allOn, (checked) => setAllLevels(checked))
+      );
+      const sep = document.createElement("div");
+      sep.className = "level-sep";
+      menu.appendChild(sep);
+
+      levels.forEach((lvl) => {
+        const count = (levelToDbIds.get(lvl) || []).length;
+        menu.appendChild(
+          makeRow(lvl + " (" + count + ")", levelVisible.get(lvl), (checked) => {
+            setLevelVisible(lvl, checked);
+            renderLevelsMenu(); // keep the "All levels" box in sync
+          })
+        );
+      });
+    }
+
+    function initLevelsMenu() {
+      // Everything visible by default.
+      sortedLevelNames().forEach((lvl) => levelVisible.set(lvl, true));
+      renderLevelsMenu();
+
+      const toggle = document.getElementById("levels-toggle");
+      const menu = document.getElementById("levels-menu");
+      toggle.addEventListener("click", (e) => {
+        e.stopPropagation();
+        menu.classList.toggle("hidden");
+      });
+      // Close when clicking elsewhere.
+      document.addEventListener("click", (e) => {
+        if (!document.getElementById("levels-wrap").contains(e.target)) {
+          menu.classList.add("hidden");
+        }
+      });
+    }
+
+    // ---------------------------------------------------------------- highlighting
+
+    function clearHighlight() {
+      if (!viewer || !primaryModel) {
+        return;
+      }
+      viewer.clearThemingColors(primaryModel);
+      viewer.showAll();
+      highlightedDbIds = [];
+      removeRoomOverlay();
+      removeClearanceOverlay();
+      viewer.impl.invalidate(true, true, true);
+    }
+
+    function dbIdsForExternalIds(externalIds) {
+      const dbIds = [];
+      const missing = [];
+      for (const ext of externalIds) {
+        const dbId = externalIdToDbId[ext];
+        if (dbId !== undefined) {
+          dbIds.push(dbId);
+        } else {
+          missing.push(ext);
+        }
+      }
+      if (missing.length) {
+        console.warn("No dbId for externalIds:", missing);
+      }
+      return dbIds;
+    }
+
+    // Lightly ghost the rest of the building so highlights pop but context stays.
+    function ghostExcept(dbIds) {
+      if (!dbIds.length) {
+        return;
+      }
+      // isolate() dims everything not in the set (semi-transparent ghost),
+      // keeping the whole building visible rather than hiding it.
+      viewer.isolate(dbIds, primaryModel);
+    }
+
+    function highlightElements(dbIds) {
+      for (const dbId of dbIds) {
+        viewer.setThemingColor(dbId, ELEMENT_COLOR, primaryModel);
+      }
+      highlightedDbIds = highlightedDbIds.concat(dbIds);
+    }
+
+    // Reframe only if the targets are off-screen, with a wide margin so the
+    // surrounding building stays in view (gentle locate, not a hard zoom).
+    function gentleFrame(dbIds) {
+      if (!dbIds.length) {
+        return;
+      }
+      const box = boundingBoxForDbIds(dbIds);
+      if (!box) {
+        return;
+      }
+      if (isBoxComfortablyVisible(box)) {
+        return; // already in view; don't move the camera
+      }
+      // Pad the box generously so we keep context around the targets.
+      const padded = box.clone();
+      const size = box.getSize(new THREE.Vector3());
+      const pad = Math.max(size.x, size.y, size.z) * 1.5 + 5;
+      padded.expandByScalar(pad);
+      viewer.navigation.fitBounds(false, padded);
+    }
+
+    // Hard zoom to a single element/room on explicit click.
+    function zoomTo(dbIds) {
+      if (!dbIds.length) {
+        return;
+      }
+      viewer.fitToView(dbIds, primaryModel, false);
+    }
+
+    // The default whole-building camera, captured once so "zoom out" can
+    // return to it without clearing the current highlight / room volumes.
+    let homeView = null;
+
+    function captureHomeView() {
+      homeView = {
+        position: viewer.navigation.getPosition().clone(),
+        target: viewer.navigation.getTarget().clone(),
+        up: viewer.navigation.getCameraUpVector().clone()
+      };
+    }
+
+    // Which result item is currently zoomed-in, so a second double-click on
+    // the same item toggles back out. Null means we're at the building view.
+    let focusedKey = null;
+
+    // Frame an arbitrary world-space box by placing the camera along the
+    // current view direction at a distance that fills most of the viewport.
+    // Works on the viewer's bundled THREE r71, where navigation.fitBounds from
+    // a bare box does not reliably reframe.
+    function frameBox(box, fill) {
+      const center = box.getCenter(new THREE.Vector3());
+      const size = box.getSize(new THREE.Vector3());
+      const radius = 0.5 * Math.max(size.x, size.y, size.z, 1e-3);
+
+      const cam = viewer.navigation.getCamera();
+      const fov = (cam && cam.fov ? cam.fov : 45) * Math.PI / 180;
+      // Distance so the sphere around the box fits the vertical FOV, padded.
+      const pad = fill ? 1.25 : 2.2;
+      const dist = (radius / Math.sin(fov / 2)) * pad;
+
+      // Keep the current viewing direction; just move along it.
+      const curPos = viewer.navigation.getPosition();
+      const curTgt = viewer.navigation.getTarget();
+      let dir = new THREE.Vector3().subVectors(curPos, curTgt);
+      if (dir.lengthSq() < 1e-6) {
+        dir = new THREE.Vector3(1, -1, 1); // sensible default iso direction
+      }
+      dir.normalize();
+
+      const newPos = new THREE.Vector3().copy(center).add(
+        dir.multiplyScalar(dist)
+      );
+      viewer.navigation.setView(newPos, center);
+    }
+
+    // Double-click handler for a result item: zoom in, or toggle back out if
+    // the same item is double-clicked again. Keeps all highlighting intact.
+    function toggleFocus(key, box) {
+      if (!box) {
+        return;
+      }
+      if (focusedKey === key) {
+        // Second double-click on the same item: zoom back out to the building.
+        if (homeView) {
+          viewer.navigation.setView(homeView.position, homeView.target);
+          viewer.navigation.setCameraUpVector(homeView.up);
+        } else {
+          viewer.fitToView();
+        }
+        focusedKey = null;
+      } else {
+        frameBox(box, true);
+        focusedKey = key;
+      }
+    }
+
+    function boundingBoxForDbIds(dbIds) {
+      const it = primaryModel.getInstanceTree();
+      const frags = primaryModel.getFragmentList();
+      if (!it || !frags) {
+        return null;
+      }
+      const total = new THREE.Box3();
+      let found = false;
+      for (const dbId of dbIds) {
+        it.enumNodeFragments(dbId, (fragId) => {
+          const b = new THREE.Box3();
+          frags.getWorldBounds(fragId, b);
+          total.union(b);
+          found = true;
+        }, true);
+      }
+      return found ? total : null;
+    }
+
+    function isBoxComfortablyVisible(box) {
+      // Heuristic: treat as visible if its center projects inside the viewport
+      // with margin. Keeps the camera still when targets are already on screen.
+      const center = box.getCenter(new THREE.Vector3());
+      const pt = viewer.worldToClient(center);
+      const c = viewer.container;
+      const mx = c.clientWidth * 0.15;
+      const my = c.clientHeight * 0.15;
+      return (
+        pt.x > mx && pt.x < c.clientWidth - mx &&
+        pt.y > my && pt.y < c.clientHeight - my
+      );
+    }
+
+    // ---------------------------------------------------------------- room volumes
+
+    // Parse the outer ring of a WKT CURVEPOLYGON/POLYGON Z into [[x,y,z],...].
+    //
+    // The geometry here looks like:
+    //   CURVEPOLYGON Z (COMPOUNDCURVE Z (LINESTRING Z (x y z, x y z), ...),
+    //                   COMPOUNDCURVE Z (... inner hole ...))
+    // The FIRST compound curve is the outer boundary; any later ones are
+    // inner holes, which we ignore for the POC. Within the outer curve we
+    // take the first point of each LINESTRING segment (segments share
+    // endpoints, so the first points trace the ring without duplication).
+    function parseWktOuterRing(wkt) {
+      if (!wkt || typeof wkt !== "string") {
+        return null;
+      }
+
+      // Isolate the outer ring: text from the first COMPOUNDCURVE up to the
+      // second one (or the end). Fall back to the whole string if the WKT is a
+      // plain POLYGON with no COMPOUNDCURVE wrapper.
+      const curveStarts = [];
+      const re = /COMPOUNDCURVE/g;
+      let m;
+      while ((m = re.exec(wkt)) !== null) {
+        curveStarts.push(m.index);
+      }
+      const outerText = curveStarts.length
+        ? wkt.slice(
+            curveStarts[0],
+            curveStarts.length > 1 ? curveStarts[1] : wkt.length
+          )
+        : wkt;
+
+      // First point of each LINESTRING segment.
+      const pts = [];
+      const segRe = /LINESTRING\s+Z?\s*\(([^)]*)\)/gi;
+      let seg;
+      while ((seg = segRe.exec(outerText)) !== null) {
+        const first = seg[1].split(",")[0].trim().split(/\s+/);
+        if (first.length >= 2) {
+          pts.push([
+            parseFloat(first[0]),
+            parseFloat(first[1]),
+            first.length >= 3 ? parseFloat(first[2]) : 0
+          ]);
+        }
+      }
+
+      // Fallback for a plain POLYGON Z with a bare coordinate list.
+      if (pts.length < 3) {
+        const nums = outerText.match(/-?\d+(?:\.\d+)?/g);
+        if (nums && nums.length >= 9) {
+          for (let i = 0; i + 2 < nums.length; i += 3) {
+            pts.push([
+              parseFloat(nums[i]),
+              parseFloat(nums[i + 1]),
+              parseFloat(nums[i + 2])
+            ]);
+          }
+        }
+      }
+
+      if (pts.length < 3) {
+        return null;
+      }
+
+      // Drop consecutive duplicate XY points.
+      const clean = [];
+      for (const p of pts) {
+        const last = clean[clean.length - 1];
+        if (
+          !last ||
+          Math.abs(last[0] - p[0]) > 1e-9 ||
+          Math.abs(last[1] - p[1]) > 1e-9
+        ) {
+          clean.push(p);
+        }
+      }
+      return clean.length >= 3 ? clean : null;
+    }
+
+    // Build a translucent extruded prism from a room outline + base_z + height.
+    // The outline is in the model's survey coordinates (as stored in WKT); we
+    // map it into viewer space with the model's placementWithOffset matrix,
+    // which is how the SVF itself positions all geometry. (Subtracting
+    // globalOffset is NOT equivalent and lands the room in the wrong place.)
+    function buildRoomMesh(outline, baseZ, height) {
+      const shape = new THREE.Shape();
+      outline.forEach((p, i) => {
+        if (i === 0) {
+          shape.moveTo(p[0], p[1]);
+        } else {
+          shape.lineTo(p[0], p[1]);
+        }
+      });
+
+      const geom = new THREE.ExtrudeGeometry(shape, {
+        // The APS viewer bundles THREE r71, whose ExtrudeGeometry uses the
+        // legacy `amount` key; modern THREE uses `depth`. Set both so the
+        // extrude height is correct regardless of the bundled version.
+        amount: height,
+        depth: height,
+        bevelEnabled: false
+      });
+      // Extrude builds along +Z starting at z=0; lift it to the floor level.
+      geom.applyMatrix4(new THREE.Matrix4().makeTranslation(0, 0, baseZ));
+
+      // Survey -> viewer: use the model's own placement transform.
+      const placement = modelPlacementMatrix();
+      if (placement) {
+        geom.applyMatrix4(placement);
+      } else if (sharedGlobalOffset) {
+        // Last-resort fallback if the placement matrix is unavailable.
+        geom.applyMatrix4(new THREE.Matrix4().makeTranslation(
+          -sharedGlobalOffset.x,
+          -sharedGlobalOffset.y,
+          -sharedGlobalOffset.z
+        ));
+      }
+
+      const material = new THREE.MeshPhongMaterial({
+        color: new THREE.Color(ROOM_COLOR.r, ROOM_COLOR.g, ROOM_COLOR.b),
+        opacity: ROOM_COLOR.a,
+        transparent: true,
+        depthWrite: false,
+        side: THREE.DoubleSide
+      });
+
+      return new THREE.Mesh(geom, material);
+    }
+
+    // The model's survey -> viewer transform (includes the global offset).
+    // Cached once the primary model is loaded.
+    function modelPlacementMatrix() {
+      if (!primaryModel) {
+        return null;
+      }
+      const data = primaryModel.getData();
+      const p = data && data.placementWithOffset;
+      if (p && p.elements) {
+        return new THREE.Matrix4().fromArray(p.elements);
+      }
+      return null;
+    }
+
+    function ensureRoomOverlay() {
+      if (!roomOverlayActive) {
+        viewer.impl.createOverlayScene(ROOM_OVERLAY);
+        roomOverlayActive = true;
+      }
+    }
+
+    function removeRoomOverlay() {
+      if (roomOverlayActive) {
+        viewer.impl.removeOverlayScene(ROOM_OVERLAY);
+        roomOverlayActive = false;
+      }
+    }
+
+    // Returns the mesh (for click-to-zoom bounds) or null.
+    function addRoomVolume(room) {
+      const outline = room.outline || parseWktOuterRing(room.wkt);
+      if (!outline) {
+        console.warn("Room has no usable outline:", room.space_external_id);
+        // Fallback: theme the room element itself if it rendered.
+        const dbId = externalIdToDbId[room.space_external_id];
+        if (dbId !== undefined) {
+          viewer.setThemingColor(dbId, ELEMENT_COLOR, primaryModel);
+          highlightedDbIds.push(dbId);
+        }
+        return null;
+      }
+
+      const baseZ = (room.base_z !== undefined && room.base_z !== null)
+        ? room.base_z
+        : outline[0][2] || 0;
+      const height = room.height || 9;
+
+      ensureRoomOverlay();
+      const mesh = buildRoomMesh(outline, baseZ, height);
+      viewer.impl.addOverlay(ROOM_OVERLAY, mesh);
+      viewer.impl.invalidate(true, true, true);
+      return mesh;
+    }
+
+    // --------------------------------------------------------- clearance zones
+    //
+    // Draw the NEC working-clearance box(es) for a panel as translucent volumes,
+    // and tint any intruding elements. Zone corners arrive in the model's local
+    // feet frame (same as bounding_box / room WKT), so we map them to viewer
+    // space with the same placementWithOffset transform the room volumes use.
+    // Every value is validated before use; nothing is computed in the browser.
+
+    function ensureClearanceOverlay() {
+      if (!clearanceOverlayActive) {
+        viewer.impl.createOverlayScene(CLEARANCE_OVERLAY);
+        clearanceOverlayActive = true;
+      }
+    }
+
+    function removeClearanceOverlay() {
+      if (clearanceOverlayActive) {
+        viewer.impl.removeOverlayScene(CLEARANCE_OVERLAY);
+        clearanceOverlayActive = false;
+      }
+    }
+
+    // A finite number inside a sane building-coordinate range.
+    function finiteNum(v) {
+      return typeof v === "number" && isFinite(v) && Math.abs(v) < 1e6;
+    }
+
+    // Validate one {min:[x,y,z], max:[x,y,z]} zone into a THREE.Box3 in the
+    // model's local frame, or null if malformed / degenerate.
+    function zoneToLocalBox(zone) {
+      if (!zone || !Array.isArray(zone.min) || !Array.isArray(zone.max)) {
+        return null;
+      }
+      const mn = zone.min;
+      const mx = zone.max;
+      if (mn.length !== 3 || mx.length !== 3) {
+        return null;
+      }
+      if (!mn.every(finiteNum) || !mx.every(finiteNum)) {
+        return null;
+      }
+      const box = new THREE.Box3(
+        new THREE.Vector3(
+          Math.min(mn[0], mx[0]), Math.min(mn[1], mx[1]), Math.min(mn[2], mx[2])
+        ),
+        new THREE.Vector3(
+          Math.max(mn[0], mx[0]), Math.max(mn[1], mx[1]), Math.max(mn[2], mx[2])
+        )
+      );
+      const size = box.getSize(new THREE.Vector3());
+      if (size.x < 1e-6 || size.y < 1e-6 || size.z < 1e-6) {
+        return null; // zero-volume zone
+      }
+      return box;
+    }
+
+    // Build a translucent box mesh (filled + wireframe edges) from a local-frame
+    // Box3, mapped into viewer space via the model placement transform.
+    function buildClearanceMesh(localBox, rgb) {
+      const size = localBox.getSize(new THREE.Vector3());
+      const center = localBox.getCenter(new THREE.Vector3());
+
+      const group = new THREE.Object3D();
+
+      const geom = new THREE.BoxGeometry(size.x, size.y, size.z);
+      const fill = new THREE.Mesh(geom, new THREE.MeshPhongMaterial({
+        color: new THREE.Color(rgb.r, rgb.g, rgb.b),
+        opacity: 0.22,
+        transparent: true,
+        depthWrite: false,
+        side: THREE.DoubleSide
+      }));
+      fill.position.copy(center);
+      group.add(fill);
+
+      // Wireframe edges so the zone reads as a crisp box even when translucent.
+      const edgeGeom = new THREE.BoxGeometry(size.x, size.y, size.z);
+      const edges = new THREE.Mesh(edgeGeom, new THREE.MeshBasicMaterial({
+        color: new THREE.Color(rgb.r, rgb.g, rgb.b),
+        wireframe: true,
+        transparent: true,
+        opacity: 0.9,
+        depthWrite: false
+      }));
+      edges.position.copy(center);
+      group.add(edges);
+
+      const placement = modelPlacementMatrix();
+      if (placement) {
+        group.applyMatrix4(placement);
+      } else if (sharedGlobalOffset) {
+        group.applyMatrix4(new THREE.Matrix4().makeTranslation(
+          -sharedGlobalOffset.x,
+          -sharedGlobalOffset.y,
+          -sharedGlobalOffset.z
+        ));
+      }
+      return group;
+    }
+
+    // Draw a clearance result: the zone box(es), tint the panel + any intruders.
+    function drawClearance(result) {
+      removeClearanceOverlay();
+      ensureClearanceOverlay();
+
+      const zones = (result.clearance && Array.isArray(result.clearance.zones))
+        ? result.clearance.zones
+        : [];
+      let drawn = 0;
+      zones.forEach((zone) => {
+        const box = zoneToLocalBox(zone);
+        if (box) {
+          // Each zone carries its own clear flag so we can color zones
+          // independently: red only where something intrudes, green where
+          // clear. If the flag is absent, fall back to the panel-level verdict.
+          const zoneClear = (zone.clear === undefined)
+            ? (result.clear === true)
+            : (zone.clear === true);
+          const rgb = zoneClear ? CLEARANCE_CLEAR : CLEARANCE_VIOLATED;
+          const mesh = buildClearanceMesh(box, rgb);
+          viewer.impl.addOverlay(CLEARANCE_OVERLAY, mesh);
+          drawn += 1;
+        }
+      });
+
+      // Highlight the panel (orange) and tint intruders (red).
+      const panelDbIds = result.panel_external_id
+        ? dbIdsForExternalIds([result.panel_external_id])
+        : [];
+      panelDbIds.forEach((dbId) => {
+        viewer.setThemingColor(dbId, ELEMENT_COLOR, primaryModel);
+        highlightedDbIds.push(dbId);
+      });
+
+      const intruderDbIds = dbIdsForExternalIds(result.intruder_ids || []);
+      intruderDbIds.forEach((dbId) => {
+        viewer.setThemingColor(dbId, INTRUDER_COLOR, primaryModel);
+        highlightedDbIds.push(dbId);
+      });
+
+      // Ghost the rest of the building so the translucent zone boxes read
+      // clearly against a faded backdrop (same isolate-dim a normal highlight
+      // uses). Without this the boxes can be lost against solid geometry, or
+      // invisible entirely when nothing else is highlighted. The panel and its
+      // intruders stay fully lit so the user sees exactly what's in the zone.
+      const contextDbIds = panelDbIds.concat(intruderDbIds);
+      if (contextDbIds.length) {
+        viewer.isolate(contextDbIds, primaryModel);
+      }
+
+      viewer.impl.invalidate(true, true, true);
+      return { drawn: drawn, intruders: intruderDbIds.length };
+    }
+
+    // ---------------------------------------------------------------- chat UI
+
+    const chatLog = document.getElementById("chat-log");
+
+    // Drop the per-element bullet lines from a Genie reply that only restate
+    // identifiers (external_id / model_key / space_external_id). Those IDs
+    // already live in the interactive result list and the CSV, so repeating
+    // them in prose just clutters the chat. The intro/summary text is kept.
+    function trimIdBullets(text) {
+      const idRe = /\b(external_id|model_key|space_external_id)\b/i;
+      const lines = (text || "").split(/\r?\n/);
+      const kept = lines.filter((line) => {
+        const isBullet = /^\s*[-*]\s+/.test(line);
+        return !(isBullet && idRe.test(line));
+      });
+      let out = kept.join("\n");
+      // Remove an inline "(space_external_id <id>)" / "(external_id <id>)"
+      // parenthetical that only names a Revit identifier.
+      out = out.replace(
+        /\s*\(\s*(space_external_id|external_id|source_unique_id)\b[^)]*\)/gi,
+        ""
+      );
+      // Now that the bullet list is gone, a leading-in phrase like
+      // "... include:" or "... are:" dangles. Drop that trailing fragment.
+      out = out.replace(
+        /[,:]?\s*(for example|examples?|such as|including|include|are|as follows)\s*:?\s*$/im,
+        "."
+      );
+      // Tidy leftover punctuation / whitespace.
+      out = out
+        .replace(/\s+([.,;:])/g, "$1")
+        .replace(/\.{2,}/g, ".")
+        .replace(/\n{3,}/g, "\n\n")
+        .trim();
+      return out;
+    }
+
+    // Minimal, safe markdown -> HTML for Genie replies: escapes first, then
+    // renders **bold**, `code`, and "- " bullet lists into paragraphs/lists.
+    // No raw HTML from the model is ever inserted (everything is escaped up
+    // front), so this cannot inject markup.
+    function renderMarkdown(text) {
+      const escaped = escapeHtml(text || "");
+      const lines = escaped.split(/\r?\n/);
+      const html = [];
+      let listOpen = false;
+
+      const inline = (s) =>
+        s
+          .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+          .replace(/`([^`]+)`/g, "<code>$1</code>");
+
+      for (const raw of lines) {
+        const line = raw.trimEnd();
+        const bullet = line.match(/^\s*[-*]\s+(.*)$/);
+        if (bullet) {
+          if (!listOpen) {
+            html.push("<ul>");
+            listOpen = true;
+          }
+          html.push("<li>" + inline(bullet[1]) + "</li>");
+          continue;
+        }
+        if (listOpen) {
+          html.push("</ul>");
+          listOpen = false;
+        }
+        if (line.trim() === "") {
+          continue;
+        }
+        html.push("<p>" + inline(line) + "</p>");
+      }
+      if (listOpen) {
+        html.push("</ul>");
+      }
+      return html.join("");
+    }
+
+    function addMessage(who, text) {
+      const wrap = document.createElement("div");
+      wrap.className = "msg " + who;
+      const label = document.createElement("span");
+      label.className = "who";
+      label.textContent = who === "user" ? "You" : "Assistant";
+      const body = document.createElement("div");
+      body.className = "body";
+      if (who === "agent") {
+        body.innerHTML = renderMarkdown(trimIdBullets(text));
+      } else {
+        body.textContent = text; // user text stays literal
+      }
+      wrap.appendChild(label);
+      wrap.appendChild(body);
+      chatLog.appendChild(wrap);
+      chatLog.scrollTop = chatLog.scrollHeight;
+      return wrap;
+    }
+
+    // How many result rows to show before the "Show all" expander.
+    const RESULTS_PREVIEW = 6;
+
+    function addResultList(wrap, elements, rooms, fieldOrder, query) {
+      elements = elements || [];
+      rooms = rooms || [];
+      if (!elements.length && !rooms.length) {
+        return;
+      }
+
+      const results = document.createElement("div");
+      results.className = "results";
+
+      // Header: count + per-answer CSV export.
+      const head = document.createElement("div");
+      head.className = "results-head";
+      const count = document.createElement("span");
+      count.className = "results-count";
+      const parts = [];
+      if (rooms.length) {
+        parts.push(rooms.length + (rooms.length === 1 ? " room" : " rooms"));
+      }
+      if (elements.length) {
+        parts.push(
+          elements.length +
+            (elements.length === 1 ? " element" : " elements")
+        );
+      }
+      count.textContent = parts.join(" · ");
+
+      const exportBtn = document.createElement("button");
+      exportBtn.type = "button";
+      exportBtn.className = "results-export";
+      exportBtn.textContent = "Export CSV";
+      exportBtn.addEventListener("click", () =>
+        exportResultsCsv(elements, rooms, fieldOrder, query)
+      );
+
+      head.appendChild(count);
+      head.appendChild(exportBtn);
+      results.appendChild(head);
+
+      const list = document.createElement("div");
+      list.className = "results-list";
+
+      const rows = [];
+
+      rooms.forEach((room) => {
+        const item = document.createElement("div");
+        item.className = "result-item";
+        item.innerHTML =
+          '<span class="kind">Room</span> ' +
+          escapeHtml(room.label || room.space_external_id);
+        const key = "room:" + room.space_external_id;
+        item.title = "Double-click to zoom; double-click again to zoom out.";
+        item.addEventListener("dblclick", () => {
+          const mesh = roomMeshes.get(room.space_external_id);
+          if (mesh && mesh.geometry) {
+            mesh.geometry.computeBoundingBox();
+            const box = mesh.geometry.boundingBox.clone();
+            box.applyMatrix4(mesh.matrixWorld);
+            toggleFocus(key, box);
+          }
+        });
+        rows.push(item);
+      });
+
+      elements.forEach((el) => {
+        const item = document.createElement("div");
+        item.className = "result-item";
+        // Show a price per row when the row carries a cost. Cost queries
+        // return metric_value; category queries return replacement_cost. Use
+        // whichever is present so both paths show a per-row price.
+        const f = el.fields || {};
+        const mv = typeof f.metric_value === "number"
+          ? f.metric_value
+          : f.replacement_cost;
+        let priceHtml = "";
+        if (typeof mv === "number" && isFinite(mv)) {
+          priceHtml =
+            ' <span class="price">\u2014 $' +
+            Math.round(mv).toLocaleString("en-US") +
+            "</span>";
+        }
+        item.innerHTML =
+          '<span class="kind">Element</span> ' +
+          escapeHtml(el.label || el.external_id) +
+          priceHtml;
+        const dbId = externalIdToDbId[el.external_id];
+        const key = "element:" + el.external_id;
+        item.title = "Double-click to zoom; double-click again to zoom out.";
+        item.addEventListener("dblclick", () => {
+          if (dbId !== undefined) {
+            toggleFocus(key, boundingBoxForDbIds([dbId]));
+          }
+        });
+        rows.push(item);
+      });
+
+      // Show a preview; hide the rest behind a "Show all N" expander.
+      rows.forEach((item, i) => {
+        if (i >= RESULTS_PREVIEW) {
+          item.style.display = "none";
+        }
+        list.appendChild(item);
+      });
+      results.appendChild(list);
+
+      if (rows.length > RESULTS_PREVIEW) {
+        const more = document.createElement("button");
+        more.type = "button";
+        more.className = "results-more";
+        const hidden = rows.length - RESULTS_PREVIEW;
+        more.textContent = "Show all " + rows.length + " (+" + hidden + ")";
+        let expanded = false;
+        more.addEventListener("click", () => {
+          expanded = !expanded;
+          rows.forEach((item, i) => {
+            if (i >= RESULTS_PREVIEW) {
+              item.style.display = expanded ? "" : "none";
+            }
+          });
+          more.textContent = expanded
+            ? "Show fewer"
+            : "Show all " + rows.length + " (+" + hidden + ")";
+        });
+        results.appendChild(more);
+      }
+
+      wrap.appendChild(results);
+      chatLog.scrollTop = chatLog.scrollHeight;
+    }
+
+    // Build and download a CSV of the current answer's results. Columns are
+    // the fields Genie returned (in order), plus the room columns for any
+    // rooms. Lean by default: exactly what was asked for, nothing injected.
+    //
+    // Revit-only identifier columns (external_id, space_external_id,
+    // source_unique_id) are dropped by default because they only mean
+    // something to someone working in the Revit model. They are kept only if
+    // the user's question explicitly asks for identifiers.
+    const REVIT_ID_COLS = [
+      "external_id", "space_external_id", "source_unique_id"
+    ];
+
+    // Does the question explicitly ask for Revit/model identifiers?
+    function queryWantsIds(query) {
+      return /\b(external\s*id|unique\s*id|revit\s*id|identifier|source_unique_id)\b/i
+        .test(query || "");
+    }
+
+    // Turn a raw column name into a readable Title Case CSV header.
+    // Data-driven: works for any column (risk_score -> "Risk Score"), with
+    // "id"/"z" upper-cased so asset_id -> "Asset ID", base_z -> "Base Z".
+    // Cost columns get a "(USD)" suffix so the dollar unit is explicit while
+    // the cell stays a plain number (so Excel can still sort and sum it).
+    const COST_COLS = ["replacement_cost", "metric_value", "maintenance_cost",
+      "total_maintenance_cost", "total_cost"];
+
+    function humanizeHeader(col) {
+      const base = String(col || "")
+        .split("_")
+        .map((word) => {
+          if (!word) {
+            return word;
+          }
+          if (word.toLowerCase() === "id") {
+            return "ID";
+          }
+          if (word.toLowerCase() === "z") {
+            return "Z";
+          }
+          return word.charAt(0).toUpperCase() + word.slice(1);
+        })
+        .join(" ");
+      if (COST_COLS.indexOf(String(col || "").toLowerCase()) !== -1) {
+        return base + " (USD)";
+      }
+      return base;
+    }
+
+    function exportResultsCsv(elements, rooms, fieldOrder, query) {
+      const esc = (v) => {
+        if (v === null || v === undefined) {
+          return "";
+        }
+        const s = String(v);
+        return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+      };
+
+      const keepIds = queryWantsIds(query);
+      const dropCol = (c) =>
+        !keepIds && REVIT_ID_COLS.indexOf((c || "").toLowerCase()) !== -1;
+
+      const sections = [];
+
+      if (elements.length) {
+        // Prefer the backend's field order; fall back to keys seen in rows.
+        let cols = (fieldOrder && fieldOrder.length)
+          ? fieldOrder.slice()
+          : [];
+        if (!cols.length) {
+          const seen = [];
+          elements.forEach((el) => {
+            Object.keys(el.fields || {}).forEach((k) => {
+              if (!seen.includes(k)) {
+                seen.push(k);
+              }
+            });
+          });
+          cols = seen;
+        }
+        cols = cols.filter((c) => !dropCol(c));
+        const lines = [cols.map((c) => esc(humanizeHeader(c))).join(",")];
+        elements.forEach((el) => {
+          const f = el.fields || {};
+          lines.push(cols.map((c) => esc(f[c])).join(","));
+        });
+        sections.push(lines.join("\n"));
+      }
+
+      if (rooms.length) {
+        let roomCols = [
+          "space_external_id", "label", "level_name",
+          "base_z", "height", "area", "volume"
+        ];
+        roomCols = roomCols.filter((c) => !dropCol(c));
+        const lines = ["", "Rooms", roomCols.map((c) => esc(humanizeHeader(c))).join(",")];
+        rooms.forEach((r) => {
+          lines.push(roomCols.map((c) => esc(r[c])).join(","));
+        });
+        sections.push(lines.join("\n"));
+      }
+
+      const csv = sections.join("\n");
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const filename = exportFilename(query);
+
+      // Trigger the normal file download.
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+
+      // Revoke shortly after the download has been handed off.
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+    }
+
+    // Name the CSV after what was asked, so saved files are self-describing
+    // (e.g. "ca8888-transformers-2026-10-29.csv") instead of a bare UUID.
+    // Derives a short slug from the question; falls back to "results".
+    function exportFilename(query) {
+      const slug = String(query || "")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-") // non-alphanumerics -> single dash
+        .replace(/^-+|-+$/g, "")      // trim leading/trailing dashes
+        .split("-")
+        .filter(Boolean)
+        .slice(0, 6)                  // keep it short
+        .join("-");
+      const date = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+      return "ca8888-" + (slug || "results") + "-" + date + ".csv";
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, (c) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;",
+        '"': "&quot;", "'": "&#39;"
+      }[c]));
+    }
+
+    // Track room meshes so result-list clicks can zoom to them.
+    const roomMeshes = new Map();
+
+    // Apply a Genie response to the viewer: highlight, ghost, gentle frame.
+    function applyResponse(data) {
+      // A clearance turn draws its own overlay (zone boxes + tinted panel +
+      // tinted intruders) over the WebSocket draw_clearance command, and that
+      // overlay relies on the whole building staying visible. clearHighlight()
+      // (showAll + removeClearanceOverlay) and the element re-highlight below
+      // would both tear that down a fraction of a second after it was drawn.
+      // So when the agent says it drew a clearance this turn, leave the viewer
+      // exactly as the draw_clearance command left it.
+      if (data && data.drew_clearance) {
+        return;
+      }
+      clearHighlight();
+      roomMeshes.clear();
+      focusedKey = null; // a new answer resets the zoom toggle
+      // Treat the current camera as "home" for this answer, so a zoom-out
+      // double-click returns to exactly where the user was when they asked.
+      captureHomeView();
+
+      const elements = data.elements || [];
+      const rooms = data.rooms || [];
+
+      const elementDbIds = dbIdsForExternalIds(
+        elements.map((e) => e.external_id)
+      );
+
+      // Rooms: draw translucent volumes; collect any fallback element dbIds.
+      rooms.forEach((room) => {
+        const mesh = addRoomVolume(room);
+        if (mesh) {
+          roomMeshes.set(room.space_external_id, mesh);
+        }
+      });
+
+      const focusDbIds = elementDbIds.slice();
+
+      if (focusDbIds.length) {
+        ghostExcept(focusDbIds);
+        highlightElements(focusDbIds);
+      }
+
+      viewer.impl.invalidate(true, true, true);
+
+      // Highlight in place only. Per the viewer's interaction rules we never
+      // move the camera in response to an answer; the user double-clicks a
+      // result (or an element in 3D) to zoom. This keeps the whole building
+      // in context and keeps the zoom toggle's state in sync with the camera.
+    }
+
+    async function sendChat() {
+      const input = document.getElementById("chat-input");
+      const sendBtn = document.getElementById("chat-send");
+      const text = input.value.trim();
+      if (!text) {
+        return;
+      }
+      addMessage("user", text);
+      input.value = "";
+      sendBtn.disabled = true;
+
+      // Two live paths: "agent" is the fast tool-calling AI agent (/api/agent);
+      // "genie" is the Databricks Genie natural-language Q&A (/api/chat).
+      const modeEl = document.getElementById("chat-mode");
+      const mode = modeEl ? modeEl.value : "agent";
+      const endpoint = mode === "genie" ? "/api/chat" : "/api/agent";
+
+      try {
+        const resp = await fetch(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query: text })
+        });
+        if (!resp.ok) {
+          throw new Error("Server returned " + resp.status);
+        }
+        const data = await resp.json();
+        const wrap = addMessage("agent", data.reply || "(no answer)");
+        addResultList(wrap, data.elements, data.rooms, data.field_order, text);
+        applyResponse(data);
+      } catch (err) {
+        console.error(err);
+        addMessage("agent", "Error: " + err.message);
+      } finally {
+        sendBtn.disabled = false;
+      }
+    }
+
+    // Double-click an element in the 3D view -> zoom in, or toggle back out if
+    // the same element is double-clicked again. Shares toggleFocus with the
+    // result list (same key scheme) so the list and the 3D view stay in sync.
+    function onViewerClick(event) {
+      const result = viewer.impl
+        ? viewer.impl.hitTest(event.clientX, event.clientY, false)
+        : null;
+      if (!result || result.dbId === undefined || result.dbId === null) {
+        return;
+      }
+      const dbId = result.dbId;
+      // Prefer the durable externalId so the key matches the result list's
+      // "element:<externalId>" key; fall back to the dbId otherwise.
+      const ext = dbIdToExternalId[dbId];
+      const key = ext ? "element:" + ext : "dbid:" + dbId;
+      const box = boundingBoxForDbIds([dbId]);
+      if (box) {
+        toggleFocus(key, box);
+      }
+    }
+
+    // ----------------------------------------------- Role B: viewer commands
+    //
+    // A command channel lets the backend (and, through it, an MCP server/agent)
+    // drive the 3D view. SECURITY: everything arriving on this channel is
+    // treated as untrusted. We accept ONLY the fixed command vocabulary below,
+    // validate every argument, and never eval, navigate, fetch, or touch paths.
+    // Invalid input is dropped with a structured console warning that contains
+    // no sensitive values.
+
+    // Revit UniqueId shape: 8-4-4-4-12 hex GUID + "-" + 8 hex digits.
+    const EXTERNAL_ID_RE =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}-[0-9a-f]{8}$/i;
+
+    // Caps so a hostile/oversized message can't flood the viewer.
+    const MAX_IDS = 5000;
+
+    function sanitizeExternalIds(value) {
+      if (!Array.isArray(value)) {
+        return [];
+      }
+      const out = [];
+      for (const v of value) {
+        if (out.length >= MAX_IDS) {
+          break;
+        }
+        if (typeof v === "string" && EXTERNAL_ID_RE.test(v)) {
+          out.push(v);
+        }
+      }
+      return out;
+    }
+
+    function sanitizeSpaceId(value) {
+      return (typeof value === "string" && EXTERNAL_ID_RE.test(value))
+        ? value
+        : null;
+    }
+
+    // Validate the clearance payload: a panel id, a short list of zone boxes
+    // (min/max coordinate triples), and intruder ids. Anything malformed is
+    // dropped so a hostile message cannot inject geometry or oversized data.
+    const MAX_ZONES = 8;
+
+    function sanitizeClearance(args) {
+      if (!args || typeof args !== "object") {
+        return null;
+      }
+      const panelId = sanitizeSpaceId(args.panel_external_id);
+      const rawZones = Array.isArray(args.zones) ? args.zones : [];
+      const zones = [];
+      for (const z of rawZones) {
+        if (zones.length >= MAX_ZONES) {
+          break;
+        }
+        const box = (z && Array.isArray(z.min) && Array.isArray(z.max))
+          ? { min: z.min, max: z.max, clear: z.clear === true }
+          : null;
+        if (box) {
+          zones.push(box);
+        }
+      }
+      const intruderIds = sanitizeExternalIds(args.intruder_ids);
+      const clear = args.clear === true;
+      return {
+        panel_external_id: panelId,
+        clearance: { zones: zones },
+        intruder_ids: intruderIds,
+        clear: clear
+      };
+    }
+
+    // Allowlisted command handlers. Each returns a small, non-sensitive
+    // summary {applied, count?} — never raw input, ids, or stack traces.
+    const COMMANDS = {
+      highlight_elements(args) {
+        const ids = sanitizeExternalIds(args && args.external_ids);
+        const dbIds = dbIdsForExternalIds(ids);
+        if (dbIds.length) {
+          ghostExcept(dbIds);
+          highlightElements(dbIds);
+          viewer.impl.invalidate(true, true, true);
+        }
+        return { applied: true, count: dbIds.length };
+      },
+
+      highlight_rooms(args) {
+        const spaceIds = Array.isArray(args && args.space_external_ids)
+          ? args.space_external_ids
+              .map(sanitizeSpaceId)
+              .filter((v) => v !== null)
+              .slice(0, MAX_IDS)
+          : [];
+        let count = 0;
+        spaceIds.forEach((sid) => {
+          const mesh = addRoomVolume({ space_external_id: sid });
+          if (mesh) {
+            roomMeshes.set(sid, mesh);
+            count += 1;
+          }
+        });
+        if (count) {
+          viewer.impl.invalidate(true, true, true);
+        }
+        return { applied: true, count: count };
+      },
+
+      isolate(args) {
+        const ids = sanitizeExternalIds(args && args.external_ids);
+        const dbIds = dbIdsForExternalIds(ids);
+        if (dbIds.length) {
+          // Harder ghost than a highlight: hide the rest entirely.
+          viewer.isolate(dbIds, primaryModel);
+          highlightElements(dbIds);
+          viewer.impl.invalidate(true, true, true);
+        }
+        return { applied: true, count: dbIds.length };
+      },
+
+      // Explicit, opt-in camera move only. Never auto-fired on a Genie answer.
+      // Always frames the target (zooms IN); it never toggles back out — that
+      // toggle belongs to double-click only. frameBox sets focusedKey so a
+      // later double-click on the same item can still toggle back.
+      zoom_to(args) {
+        const spaceId = sanitizeSpaceId(args && args.space_external_id);
+        if (spaceId) {
+          const mesh = roomMeshes.get(spaceId);
+          if (mesh && mesh.geometry) {
+            mesh.geometry.computeBoundingBox();
+            const box = mesh.geometry.boundingBox.clone();
+            box.applyMatrix4(mesh.matrixWorld);
+            frameBox(box, true);
+            focusedKey = "room:" + spaceId;
+            return { applied: true, target: "room" };
+          }
+          return { applied: false };
+        }
+        const ids = sanitizeExternalIds(args && args.external_ids);
+        const dbIds = dbIdsForExternalIds(ids);
+        if (dbIds.length) {
+          const box = boundingBoxForDbIds(dbIds);
+          if (box) {
+            // Highlight the target as we frame it, so zooming to a result keeps
+            // (or restores) the colored highlight instead of landing on bare
+            // geometry. Ghost the rest so the target reads clearly up close.
+            ghostExcept(dbIds);
+            highlightElements(dbIds);
+            viewer.impl.invalidate(true, true, true);
+            frameBox(box, true);
+            focusedKey = "element:" + ids[0];
+            return { applied: true, target: "elements" };
+          }
+        }
+        return { applied: false };
+      },
+
+      color_by() {
+        // Reserved for a future pass; accepted but not yet implemented so an
+        // agent calling it fails safe rather than crashing the dispatcher.
+        return { applied: false, reason: "not_implemented" };
+      },
+
+      draw_clearance(args) {
+        const payload = sanitizeClearance(args);
+        if (!payload || !payload.clearance.zones.length) {
+          return { applied: false, reason: "no_zones" };
+        }
+        const res = drawClearance(payload);
+        return { applied: true, drawn: res.drawn, intruders: res.intruders };
+      },
+
+      reset() {
+        clearHighlight();
+        roomMeshes.clear();
+        focusedKey = null;
+        return { applied: true };
+      }
+    };
+
+    // Dispatch one command object. Strict allowlist; unknown or malformed
+    // commands are ignored (fail-safe), never executed.
+    function runCommand(cmd) {
+      if (!viewer || !primaryModel) {
+        return { applied: false, reason: "viewer_not_ready" };
+      }
+      if (!cmd || typeof cmd !== "object") {
+        console.warn("viewer command rejected: not an object");
+        return { applied: false, reason: "bad_command" };
+      }
+      const name = typeof cmd.command === "string" ? cmd.command : "";
+      const handler = COMMANDS[name];
+      if (!handler) {
+        // Do not echo the raw name beyond a short allowlisted label.
+        console.warn("viewer command rejected: unknown command");
+        return { applied: false, reason: "unknown_command" };
+      }
+      try {
+        return handler(cmd.args || {});
+      } catch (err) {
+        // Sanitized: log a generic marker, never the error detail/stack.
+        console.warn("viewer command handler failed:", name);
+        return { applied: false, reason: "handler_error" };
+      }
+    }
+
+    // Turn a command + its handler result into a short status-banner line, so
+    // the banner reflects what actually happened instead of going stale. The
+    // result carries only the small, non-sensitive summary each handler
+    // returns (applied, count, reason) — never ids or raw input. Returns null
+    // when there is nothing worth announcing.
+    function statusForCommand(cmd, result) {
+      const name = cmd && typeof cmd.command === "string" ? cmd.command : "";
+      if (!result || typeof result !== "object") {
+        return null;
+      }
+      if (!result.applied) {
+        if (result.reason === "viewer_not_ready") {
+          return "The viewer is still loading. Try again in a moment.";
+        }
+        if (name === "draw_clearance" && result.reason === "no_zones") {
+          return "No clearance zone to show for that element.";
+        }
+        if (result.reason === "not_implemented") {
+          return "That view option is not available yet.";
+        }
+        // Unknown/bad/malformed commands and no-op matches: say nothing
+        // rather than claim a result.
+        return null;
+      }
+      const count = typeof result.count === "number" ? result.count : null;
+      switch (name) {
+        case "highlight_elements":
+          return count
+            ? "Highlighted " + count + (count === 1 ? " element." : " elements.")
+            : "No matching elements to highlight.";
+        case "highlight_rooms":
+          return count
+            ? "Showing " + count + (count === 1 ? " room." : " rooms.")
+            : "No matching rooms to show.";
+        case "isolate":
+          return count
+            ? "Isolated " + count + (count === 1 ? " element." : " elements.")
+            : "No matching elements to isolate.";
+        case "zoom_to":
+          return "Framed the selection.";
+        case "draw_clearance": {
+          const zones = typeof result.drawn === "number" ? result.drawn : 0;
+          const intruders =
+            typeof result.intruders === "number" ? result.intruders : 0;
+          if (!zones) {
+            return "No clearance zone to show for that element.";
+          }
+          return intruders
+            ? "Clearance shown — obstructed (" +
+                intruders +
+                (intruders === 1 ? " intruder)." : " intruders).")
+            : "Clearance shown — clear.";
+        }
+        case "reset":
+          return "View reset — showing the whole building.";
+        default:
+          return null;
+      }
+    }
+
+    // Same-origin WebSocket command channel. Reconnects with backoff. Carries
+    // only the validated command vocabulary above. HACKATHON POSTURE: this
+    // endpoint is unauthenticated over public pilot data (see SECURITY-NOTES).
+    let commandSocket = null;
+    let reconnectDelay = 1000;
+
+    function connectCommandSocket() {
+      const proto = location.protocol === "https:" ? "wss:" : "ws:";
+      const url = proto + "//" + location.host + "/ws/viewer";
+      let ws;
+      try {
+        ws = new WebSocket(url);
+      } catch (err) {
+        scheduleReconnect();
+        return;
+      }
+      commandSocket = ws;
+
+      ws.onopen = () => {
+        reconnectDelay = 1000; // reset backoff on a healthy connection
+      };
+
+      ws.onmessage = (event) => {
+        let cmd;
+        try {
+          cmd = JSON.parse(event.data);
+        } catch (err) {
+          console.warn("viewer command rejected: invalid JSON");
+          return;
+        }
+        const result = runCommand(cmd);
+        const message = statusForCommand(cmd, result);
+        if (message) {
+          setStatus(message);
+        }
+      };
+
+      ws.onclose = () => {
+        commandSocket = null;
+        scheduleReconnect();
+      };
+
+      ws.onerror = () => {
+        try {
+          ws.close();
+        } catch (err) {
+          /* ignore */
+        }
+      };
+    }
+
+    function scheduleReconnect() {
+      const delay = reconnectDelay;
+      reconnectDelay = Math.min(reconnectDelay * 2, 15000);
+      setTimeout(connectCommandSocket, delay);
+    }
+
+    // ------------------------------------------- Maximo overlay (data-layer override)
+    //
+    // The authoritative cost AND nameplate data (manufacturer / model / serial)
+    // of an asset live in Maximo, not in the Revit model (the Revit "Cost" field
+    // is a hollow placeholder — it reads $0 for the mechanical equipment, and the
+    // nameplate fields are often blank or generic). Rather than subclass the
+    // properties panel, we intercept the DATA the panel renders from.
+    //
+    // Confirmed by live inspection of the viewer 7.x build (do not assume a
+    // different path): when an element is selected the panel calls
+    //   model.getPropertySetAsync(selection)  ->  model.getPropertyDb().getPropertySet(...)
+    // and renders from the raw object that LAST call returns. Wrapping
+    // model.getProperties, model.getPropertySet, or model.getPropertySetAsync
+    // does NOT affect the panel — only wrapping the property DB's getPropertySet
+    // does. The raw object is flat, keyed "Category/Name" (e.g.
+    // "Identity Data/Cost"), each value an array of property entries.
+    //
+    // We take the existing "Identity Data/Cost" entry as a template (preserving
+    // its dbId/parentName), rename it "Replacement Cost" with the Maximo
+    // replacement value, add "Maintenance Cost", and drop the old Cost key — so
+    // the panel shows one authoritative pair, no extra group. We also overwrite
+    // "Identity Data/Manufacturer" and "Identity Data/Model" in place with the
+    // Maximo values and add "Identity Data/Serial Number" (Revit has no native
+    // serial row). Maximo lookup is async but the DB callback is sync, so we
+    // PREFETCH on selection into maximoCache (see installMaximoSelectionPrefetch)
+    // and read it here. On a backend error / no-match every field reads
+    // "unavailable" — never a faked $0 or blank.
+    const maximoCache = new Map(); // externalId -> {found, replacement, maintenance, manufacturer, model, serial}
+
+    function formatCurrency(value) {
+      if (value === null || value === undefined || value === "") return null;
+      const n = Number(value);
+      if (!isFinite(n)) return null;
+      return n.toLocaleString("en-US", {
+        style: "currency",
+        currency: "USD",
+        maximumFractionDigits: 0,
+      });
+    }
+
+    async function fetchMaximoDetails(ext) {
+      if (maximoCache.has(ext)) return maximoCache.get(ext);
+      let out = {
+        found: false,
+        replacement: "unavailable",
+        maintenance: "unavailable",
+        manufacturer: "unavailable",
+        model: "unavailable",
+        serial: "unavailable",
+      };
+      try {
+        const resp = await fetch("/api/assets/details", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ external_id: ext }),
+        });
+        if (resp.ok) {
+          const data = await resp.json();
+          if (data && data.found) {
+            out = {
+              found: true,
+              replacement: formatCurrency(data.replacement_cost) || "unavailable",
+              maintenance: formatCurrency(data.maintenance_cost) || "unavailable",
+              manufacturer: data.manufacturer || "unavailable",
+              model: data.model_number || "unavailable",
+              serial: data.serial_number || "unavailable",
+            };
+          }
+        }
+      } catch (err) {
+        console.warn("maximo details lookup failed");
+      }
+      maximoCache.set(ext, out);
+      return out;
+    }
+
+    // Rewrite the raw property set the panel renders from. The property DB's
+    // getPropertySet returns a flat object keyed by "Category/Name", each value
+    // an array of property entries (confirmed by live inspection). The cost field
+    // is at key "Identity Data/Cost": [{displayName:"Cost", displayValue:0, ...}].
+    // We rename it to "Replacement Cost" (Maximo value), add "Maintenance Cost",
+    // overwrite Manufacturer/Model in place, and add a Serial Number row.
+    const COST_KEY = "Identity Data/Cost";
+    const REPLACEMENT_KEY = "Identity Data/Replacement Cost";
+    const MAINTENANCE_KEY = "Identity Data/Maintenance Cost";
+    const MANUFACTURER_KEY = "Identity Data/Manufacturer";
+    const MODEL_KEY = "Identity Data/Model";
+    const SERIAL_KEY = "Identity Data/Serial Number";
+
+    function applyMaximoToRaw(raw, d) {
+      if (!raw || typeof raw !== "object") return;
+
+      const makeEntry = (template, name, value) => {
+        const base = template
+          ? { ...template }
+          : { displayCategory: "Identity Data", dbId: undefined, parentName: "" };
+        base.displayName = name;
+        base.attributeName = name;
+        base.displayValue = value;
+        base.type = 20; // string: show our value verbatim
+        base.units = null;
+        base.precision = 0;
+        base.hidden = false;
+        return base;
+      };
+
+      // A template that carries this element's dbId/parentName, taken from any
+      // existing Identity Data entry so added rows render consistently.
+      const costArr = raw[COST_KEY];
+      let template = Array.isArray(costArr) && costArr.length ? costArr[0] : null;
+      if (!template) {
+        const mfgArr = raw[MANUFACTURER_KEY];
+        template = Array.isArray(mfgArr) && mfgArr.length ? mfgArr[0] : null;
+      }
+
+      // Cost: rename Cost -> Replacement Cost, add Maintenance Cost, drop Cost.
+      raw[REPLACEMENT_KEY] = [makeEntry(template, "Replacement Cost", d.replacement)];
+      raw[MAINTENANCE_KEY] = [makeEntry(template, "Maintenance Cost", d.maintenance)];
+      if (COST_KEY in raw) delete raw[COST_KEY];
+
+      // Nameplate: overwrite Manufacturer/Model in place (add if missing),
+      // and add Serial Number (Revit has no native serial row).
+      raw[MANUFACTURER_KEY] = [makeEntry(template, "Manufacturer", d.manufacturer)];
+      raw[MODEL_KEY] = [makeEntry(template, "Model", d.model)];
+      raw[SERIAL_KEY] = [makeEntry(template, "Serial Number", d.serial)];
+    }
+
+    const UNAVAILABLE_DETAILS = {
+      replacement: "unavailable",
+      maintenance: "unavailable",
+      manufacturer: "unavailable",
+      model: "unavailable",
+      serial: "unavailable",
+    };
+
+    // Wrap the property DB's getPropertySet — the method the panel actually reads
+    // from (confirmed live: model.getPropertySetAsync delegates to it). The
+    // Maximo lookup is async, so we PREFETCH on selection (below) into
+    // maximoCache and read it synchronously here.
+    function installMaximoCostOverride(model) {
+      if (!model || model.__maximoWrapped) return;
+      const pdb = model.getPropertyDb && model.getPropertyDb();
+      if (!pdb || typeof pdb.getPropertySet !== "function") {
+        console.warn("Maximo override: property DB getPropertySet unavailable");
+        return;
+      }
+      const original = pdb.getPropertySet.bind(pdb);
+      pdb.getPropertySet = function (dbIds, options, onSuccess, onError) {
+        return original(
+          dbIds,
+          options,
+          (raw) => {
+            try {
+              const id = Array.isArray(dbIds) ? dbIds[0] : dbIds;
+              const ext = dbIdToExternalId[id];
+              const d = (ext && maximoCache.get(ext)) || UNAVAILABLE_DETAILS;
+              applyMaximoToRaw(raw, d);
+            } catch (e) {
+              console.warn("maximo override error", e);
+            }
+            onSuccess(raw);
+          },
+          onError
+        );
+      };
+      model.__maximoWrapped = true;
+      console.log("Maximo override installed (propertyDb.getPropertySet)");
+    }
+
+    // On selection, prefetch the element's Maximo details and refresh the panel
+    // so the first click shows live values (the panel's getPropertySet is sync).
+    function installMaximoSelectionPrefetch() {
+      if (!viewer) return;
+      viewer.addEventListener(
+        Autodesk.Viewing.SELECTION_CHANGED_EVENT,
+        async (ev) => {
+          const dbIds = (ev && ev.dbIdArray) || [];
+          if (!dbIds.length) return;
+          const ext = dbIdToExternalId[dbIds[0]];
+          if (!ext || maximoCache.has(ext)) return;
+          await fetchMaximoDetails(ext); // populates the cache
+          // Re-request properties so the panel re-renders with the cached value.
+          try {
+            if (viewer.getPropertyPanel) {
+              const panel = viewer.getPropertyPanel(true);
+              if (panel && panel.isVisible && panel.isVisible()) {
+                panel.requestNodeProperties(dbIds[0]);
+              }
+            }
+          } catch (e) {
+            /* panel may not be open; cache is warm for next render */
+          }
+        }
+      );
+    }
+
+    // ---------------------------------------------------------------- startup
+
+    async function startViewer() {
+      setStatus("Initializing APS Viewer…");
+
+      // Reflect the active model source in the persistent badge immediately,
+      // before the first byte is requested.
+      const sourceBadge = document.getElementById("model-source");
+      if (sourceBadge) {
+        sourceBadge.textContent =
+          "Model source: " +
+          (MODEL_SOURCE_LABELS[MODEL_SOURCE] || MODEL_SOURCE);
+      }
+
+      const options = {
+        env: "Local",
+        useADP: false
+      };
+
+      Autodesk.Viewing.Initializer(options, async () => {
+        const container = document.getElementById("viewer");
+        viewer = new Autodesk.Viewing.GuiViewer3D(container);
+
+        const startCode = viewer.start();
+        if (startCode !== 0) {
+          setStatus("APS Viewer failed to start. Code: " + startCode);
+          return;
+        }
+
+        try {
+          setStatus("Loading MECH model…");
+          primaryModel = await loadModel(MODEL_DEFINITIONS[0]);
+
+          setStatus("Indexing model elements…");
+          await buildExternalIdMap(primaryModel);
+
+          setStatus("Mapping levels…");
+          await loadLevelData();
+          await buildLevelMap(primaryModel);
+          initLevelsMenu();
+
+          viewer.fitToView();
+          captureHomeView();
+          setStatus(
+            "MECH loaded. Ask the agent a question in the chat window.",
+            true
+          );
+
+          // Double-click to zoom to an element (single click keeps APS default).
+          viewer.container.addEventListener("dblclick", onViewerClick);
+
+          // Role B: open the command channel once the model is ready so any
+          // broadcast highlight can resolve externalIds to dbIds immediately.
+          connectCommandSocket();
+
+          // Replace the hollow Revit Cost with Maximo cost at the data layer.
+          installMaximoCostOverride(primaryModel);
+          installMaximoSelectionPrefetch();
+        } catch (error) {
+          console.error(error);
+          setStatus(error.message);
+        }
+      });
+    }
+
+    document
+      .getElementById("toggle-mech")
+      .addEventListener("click", () => toggleModel("MECH"));
+
+    document
+      .getElementById("fit-models")
+      .addEventListener("click", () => {
+        if (viewer) {
+          viewer.fitToView();
+        }
+      });
+
+    document
+      .getElementById("reset-view")
+      .addEventListener("click", () => {
+        if (viewer) {
+          clearHighlight();
+          focusedKey = null;
+          viewer.fitToView();
+          setStatus("Highlight cleared.");
+        }
+      });
+
+    document
+      .getElementById("chat-send")
+      .addEventListener("click", sendChat);
+
+    document
+      .getElementById("chat-input")
+      .addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && !e.shiftKey) {
+          e.preventDefault();
+          sendChat();
+        }
+      });
+
+    window.addEventListener("load", startViewer);
+  </script>
+</body>
+</html>

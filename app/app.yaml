@@ -1,0 +1,16 @@
+command: ["python", "app.py"]
+env:
+  - name: DATABRICKS_WAREHOUSE_ID
+    valueFrom: sql-warehouse        # resource key for the SQL warehouse (CAN USE)
+  - name: WALLS_TABLE
+    value: main.default.walls
+  - name: FOOTPRINTS_VIEW
+    value: main.default.wall_footprints
+  - name: DATABRICKS_MODEL
+    valueFrom: serving-endpoint     # resource key for a model serving endpoint (CAN QUERY)
+  - name: USAI_BASE_URL
+    value: https://<usai-host>/api/v1
+  - name: USAI_MODEL
+    value: <usai-model-name>
+  - name: USAI_API_KEY
+    valueFrom: usai-key             # resource key for a secret holding your USAi API key
