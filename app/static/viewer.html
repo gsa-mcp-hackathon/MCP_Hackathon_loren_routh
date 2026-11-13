@@ -11,10 +11,10 @@
 
   <link
     rel="stylesheet"
-    href="https://developer.api.autodesk.com/modelderivative/v2/viewers/7.*/style.min.css"
+    href="https://developer.api.autodesk.com/modelderivative/v2/viewers/7.131.1/style.min.css"
   >
 
-  <script src="https://developer.api.autodesk.com/modelderivative/v2/viewers/7.*/viewer3D.min.js"></script>
+  <script src="https://developer.api.autodesk.com/modelderivative/v2/viewers/7.131.1/viewer3D.min.js"></script>
 
   <style>
     html,
@@ -76,6 +76,11 @@
       display: inline-block;
     }
 
+    #settings-wrap {
+      position: relative;
+      display: inline-block;
+    }
+
     #levels-menu {
       position: absolute;
       top: 36px;
@@ -89,7 +94,24 @@
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
     }
 
+    #settings-menu {
+      position: absolute;
+      top: 36px;
+      left: 0;
+      z-index: 120;
+      min-width: 190px;
+      padding: 6px;
+      background: #2a2a2a;
+      border: 1px solid #555;
+      border-radius: 4px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    }
+
     #levels-menu.hidden {
+      display: none;
+    }
+
+    #settings-menu.hidden {
       display: none;
     }
 
@@ -104,11 +126,30 @@
       cursor: pointer;
     }
 
+    #settings-menu .setting-row {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 4px 6px;
+      color: #e6e6e6;
+      font-size: 12px;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+
     #levels-menu .level-row:hover {
       background: #3a3a3a;
     }
 
+    #settings-menu .setting-row:hover {
+      background: #3a3a3a;
+    }
+
     #levels-menu .level-row input {
+      cursor: pointer;
+    }
+
+    #settings-menu .setting-row input {
       cursor: pointer;
     }
 
@@ -410,6 +451,13 @@
       <div id="levels-menu" class="hidden"></div>
     </div>
 
+    <div id="settings-wrap">
+      <button id="settings-toggle" type="button">
+        Settings ▾
+      </button>
+      <div id="settings-menu" class="hidden"></div>
+    </div>
+
     <button id="reset-view" type="button">
       Reset Highlight
     </button>
@@ -504,6 +552,18 @@
 
     // Currently highlighted dbIds, so Reset can clear exactly what we set.
     let highlightedDbIds = [];
+
+    // The dbIds the CURRENT turn put on screen \u2014 set by every act path
+    // (isolate / zoom_to / highlight_elements) and by applyResponse's highlight.
+    // The Settings "Ghost hidden elements" toggle acts on this set for any kind
+    // of turn, so toggling ghost works on a highlight or zoom view, not just an
+    // isolate. Cleared at the start of every act command and on Reset.
+    let shownDbIds = [];
+
+    // Whether the rest of the building (everything outside the shown set) is
+    // drawn semi-transparent (true, the default/today's look) or fully hidden
+    // (false, "see only it"). Driven by the Settings menu checkbox.
+    let ghostingOn = true;
 
     // Overlay scene name for translucent room volumes.
     const ROOM_OVERLAY = "genie-room-overlay";
@@ -949,6 +1009,58 @@
       });
     }
 
+    // Settings menu: currently one option, "Ghost hidden elements". Decides how
+    // the rest of the building is drawn around whatever the current turn put on
+    // screen (shownDbIds): ON (default) ghosts the rest semi-transparent for
+    // context; OFF hides it completely ("see only it"). Acts on ANY turn type
+    // \u2014 isolate, zoom, or plain highlight \u2014 and never moves the camera, so
+    // toggling only changes visibility, like the Levels menu.
+    function setGhosting(on) {
+      ghostingOn = on;
+      viewer.setGhosting(on);
+      if (shownDbIds.length) {
+        // Re-isolate the shown set so the global flag takes effect on the rest.
+        // isolate() drops theming, so re-apply the highlight afterward. No
+        // fitToView here: the camera stays exactly where the user left it.
+        viewer.isolate(shownDbIds, primaryModel);
+        for (const dbId of shownDbIds) {
+          viewer.setThemingColor(dbId, ELEMENT_COLOR, primaryModel);
+        }
+        viewer.impl.invalidate(true, true, true);
+      }
+    }
+
+    function initSettingsMenu() {
+      const menu = document.getElementById("settings-menu");
+      menu.innerHTML = "";
+
+      const row = document.createElement("label");
+      row.className = "setting-row";
+      const cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.checked = ghostingOn;
+      cb.addEventListener("change", () => setGhosting(cb.checked));
+      const span = document.createElement("span");
+      span.textContent = "Ghost hidden elements";
+      row.appendChild(cb);
+      row.appendChild(span);
+      menu.appendChild(row);
+
+      // Match the viewer's default so the checkbox and the engine agree.
+      viewer.setGhosting(ghostingOn);
+
+      const toggle = document.getElementById("settings-toggle");
+      toggle.addEventListener("click", (e) => {
+        e.stopPropagation();
+        menu.classList.toggle("hidden");
+      });
+      document.addEventListener("click", (e) => {
+        if (!document.getElementById("settings-wrap").contains(e.target)) {
+          menu.classList.add("hidden");
+        }
+      });
+    }
+
     // ---------------------------------------------------------------- highlighting
 
     function clearHighlight() {
@@ -958,6 +1070,7 @@
       viewer.clearThemingColors(primaryModel);
       viewer.showAll();
       highlightedDbIds = [];
+      shownDbIds = [];
       removeRoomOverlay();
       removeClearanceOverlay();
       viewer.impl.invalidate(true, true, true);
@@ -1851,6 +1964,14 @@
       if (data && data.drew_clearance) {
         return;
       }
+      // Same reasoning for an act command (isolate / zoom_to / highlight_rooms):
+      // the command already drove the viewer over the command channel. If we
+      // fell through, clearHighlight()'s showAll() would un-isolate the set a
+      // fraction of a second later (the "isolate, then flicker back to the whole
+      // building" bug). Leave the view exactly as the act command left it.
+      if (data && data.drove_viewer) {
+        return;
+      }
       clearHighlight();
       roomMeshes.clear();
       focusedKey = null; // a new answer resets the zoom toggle
@@ -1876,8 +1997,19 @@
       const focusDbIds = elementDbIds.slice();
 
       if (focusDbIds.length) {
-        ghostExcept(focusDbIds);
+        // Color the matches in place only \u2014 no ghost/isolate of the rest.
+        // (Ghosting read as cluttered on a dense model and fought the Levels
+        // toggles; the colored highlight alone is enough to make them pop.)
+        // Track the set so the Settings ghost toggle can act on it on demand.
         highlightElements(focusDbIds);
+        shownDbIds = focusDbIds.slice();
+        if (!ghostingOn) {
+          // User has "see only it" selected: honor it for this highlight too.
+          viewer.isolate(focusDbIds, primaryModel);
+          for (const dbId of focusDbIds) {
+            viewer.setThemingColor(dbId, ELEMENT_COLOR, primaryModel);
+          }
+        }
       }
 
       viewer.impl.invalidate(true, true, true);
@@ -1917,7 +2049,14 @@
         const data = await resp.json();
         const wrap = addMessage("agent", data.reply || "(no answer)");
         addResultList(wrap, data.elements, data.rooms, data.field_order, text);
-        applyResponse(data);
+        // When the turn drove the viewer over the WebSocket command channel
+        // (isolate / zoom_to / highlight_rooms) or drew a clearance, that
+        // command is the single source of truth for the view. Skip applyResponse
+        // entirely so the HTTP path can't race it or repaint over it. The
+        // sidebar result list above is harmless and still shown either way.
+        if (!(data && (data.drove_viewer || data.drew_clearance))) {
+          applyResponse(data);
+        }
       } catch (err) {
         console.error(err);
         addMessage("agent", "Error: " + err.message);
@@ -2020,13 +2159,42 @@
 
     // Allowlisted command handlers. Each returns a small, non-sensitive
     // summary {applied, count?} — never raw input, ids, or stack traces.
+    //
+    // Every act handler calls beginActTurn() first so a turn can never inherit
+    // the previous turn's framing, highlight, or isolate state (the "framed the
+    // old cooler / no matching elements" leftover-state bug). Each handler then
+    // records what it put on screen in shownDbIds so the Settings ghost toggle
+    // can act on it, regardless of turn type.
+    function beginActTurn() {
+      focusedKey = null;
+      viewer.clearThemingColors(primaryModel);
+      viewer.showAll();
+      highlightedDbIds = [];
+      shownDbIds = [];
+      removeRoomOverlay();
+    }
+
     const COMMANDS = {
       highlight_elements(args) {
         const ids = sanitizeExternalIds(args && args.external_ids);
         const dbIds = dbIdsForExternalIds(ids);
+        beginActTurn();
         if (dbIds.length) {
-          ghostExcept(dbIds);
+          // Color the matches in place. We no longer ghost/isolate the rest:
+          // on a dense model that read as cluttered, and it fought the Levels
+          // show/hide toggles (which is why toggling a level appeared to
+          // "clear" the ghost). The colored highlight alone makes them pop.
+          // The Settings "Ghost hidden elements" toggle can still ghost the
+          // rest around this set on demand (shownDbIds).
           highlightElements(dbIds);
+          shownDbIds = dbIds.slice();
+          if (!ghostingOn) {
+            // User has "see only it" selected: honor it for this highlight too.
+            viewer.isolate(dbIds, primaryModel);
+            for (const dbId of dbIds) {
+              viewer.setThemingColor(dbId, ELEMENT_COLOR, primaryModel);
+            }
+          }
           viewer.impl.invalidate(true, true, true);
         }
         return { applied: true, count: dbIds.length };
@@ -2039,6 +2207,13 @@
               .filter((v) => v !== null)
               .slice(0, MAX_IDS)
           : [];
+        // Draw the room volumes and scrub any prior element highlight. We do
+        // NOT showAll() here \u2014 that would un-hide any levels the user turned
+        // off in the Levels menu. Respect their current visibility selection.
+        viewer.clearThemingColors(primaryModel);
+        highlightedDbIds = [];
+        shownDbIds = [];
+        focusedKey = null;
         let count = 0;
         spaceIds.forEach((sid) => {
           const mesh = addRoomVolume({ space_external_id: sid });
@@ -2056,11 +2231,24 @@
       isolate(args) {
         const ids = sanitizeExternalIds(args && args.external_ids);
         const dbIds = dbIdsForExternalIds(ids);
+        beginActTurn();
         if (dbIds.length) {
-          // Harder ghost than a highlight: hide the rest entirely.
+          // "Isolate X so I can see only it": hide everything else, color the
+          // target, then frame the camera on it. beginActTurn() already scrubbed
+          // the prior turn's highlight/isolate/framing, so this always starts
+          // from a clean slate. fitToView owns the camera move (no manual box
+          // math, no showAll/measure race). Whether the hidden rest is ghosted
+          // or fully hidden follows the Settings "Ghost hidden elements" toggle
+          // (viewer.setGhosting); shownDbIds lets that toggle re-apply live.
+          // TODO(future): on isolate, show a popup with the equipment's cut
+          // sheet / real photo (keyed off asset_type / model_number / Maximo
+          // nameplate) \u2014 the raw geometry alone isn't very informative.
+          shownDbIds = dbIds.slice();
           viewer.isolate(dbIds, primaryModel);
           highlightElements(dbIds);
           viewer.impl.invalidate(true, true, true);
+          viewer.fitToView(dbIds, primaryModel, true);
+          focusedKey = "element:" + ids[0];
         }
         return { applied: true, count: dbIds.length };
       },
@@ -2070,8 +2258,16 @@
       // toggle belongs to double-click only. frameBox sets focusedKey so a
       // later double-click on the same item can still toggle back.
       zoom_to(args) {
+        // Color the target and let the viewer's own fitToView frame it. We do
+        // NOT ghost/hide the rest (that read as cluttered on a dense model and
+        // fought the Levels show/hide state). fitToView(ids, model, true)
+        // computes bounds and positions the camera internally \u2014 no manual
+        // box math, and no showAll()/measure race (fixed upstream in 7.105+).
+        // beginActTurn() clears prior framing/highlight so we never zoom to the
+        // previous turn's target.
         const spaceId = sanitizeSpaceId(args && args.space_external_id);
         if (spaceId) {
+          beginActTurn();
           const mesh = roomMeshes.get(spaceId);
           if (mesh && mesh.geometry) {
             mesh.geometry.computeBoundingBox();
@@ -2085,19 +2281,22 @@
         }
         const ids = sanitizeExternalIds(args && args.external_ids);
         const dbIds = dbIdsForExternalIds(ids);
+        beginActTurn();
         if (dbIds.length) {
-          const box = boundingBoxForDbIds(dbIds);
-          if (box) {
-            // Highlight the target as we frame it, so zooming to a result keeps
-            // (or restores) the colored highlight instead of landing on bare
-            // geometry. Ghost the rest so the target reads clearly up close.
-            ghostExcept(dbIds);
-            highlightElements(dbIds);
-            viewer.impl.invalidate(true, true, true);
-            frameBox(box, true);
-            focusedKey = "element:" + ids[0];
-            return { applied: true, target: "elements" };
+          // Color the new target, track it for the ghost toggle, then frame it.
+          highlightElements(dbIds);
+          shownDbIds = dbIds.slice();
+          if (!ghostingOn) {
+            // "See only it" is selected: hide the rest around the zoom target.
+            viewer.isolate(dbIds, primaryModel);
+            for (const dbId of dbIds) {
+              viewer.setThemingColor(dbId, ELEMENT_COLOR, primaryModel);
+            }
           }
+          viewer.impl.invalidate(true, true, true);
+          viewer.fitToView(dbIds, primaryModel, true);
+          focusedKey = "element:" + ids[0];
+          return { applied: true, target: "elements" };
         }
         return { applied: false };
       },
@@ -2504,6 +2703,7 @@
           await loadLevelData();
           await buildLevelMap(primaryModel);
           initLevelsMenu();
+          initSettingsMenu();
 
           viewer.fitToView();
           captureHomeView();

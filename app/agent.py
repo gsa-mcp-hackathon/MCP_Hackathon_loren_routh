@@ -447,9 +447,12 @@ def _tool_specs() -> list[dict]:
                 "name": "find_in_room",
                 "description": (
                     "Find the tracked assets that sit inside a ROOM's 3D "
-                    "volume, by room number or the room's externalId. Use for "
-                    "'what equipment is in room 54', 'the receptacles in the "
-                    "electrical room'. Optionally restrict to one category. "
+                    "volume, identified by its ROOM NUMBER (e.g. 'room 54') or "
+                    "the room's externalId. This matches a room NUMBER exactly "
+                    "\u2014 it does NOT look a room up by NAME. For a room "
+                    "referred to by name (e.g. 'the Physics room', 'the "
+                    "electrical room'), use find_by_category with its room_name "
+                    "filter instead. Optionally restrict to one category. "
                     "Returns element data (external_ids); it does NOT change "
                     "the view \u2014 to show the result, call highlight_elements "
                     "or isolate with the returned ids."
@@ -677,15 +680,26 @@ SYSTEM = (
     "the priority back to the word high/normal/low. Do not call a highlight "
     "tool for a work-order question. "
     "You also have tools that find elements by location or geometry: "
-    "find_in_room (what assets are inside a room, by room number), find_extreme "
+    "find_in_room (what assets are inside a room, by its room NUMBER), "
+    "find_extreme "
     "(the largest/smallest or most northmost/southmost/eastmost/westmost "
     "element), and find_nearest (the elements closest to a reference element). "
     "These RETURN element data and do NOT change the view on their own \u2014 so "
     "if the user wants to SEE the result, follow up by calling highlight_elements "
     "(show in place), isolate (show only those, hide the rest), or zoom_to (move "
-    "the camera) with the external_ids the find tool returned. For example 'show "
+    "the camera) with the external_ids the find tool returned. IMPORTANT: match "
+    "the act tool to the user's verb \u2014 if they say 'zoom in' / 'zoom to' / "
+    "'focus on', you MUST follow up with zoom_to (not highlight_elements); use "
+    "highlight_elements only when they say 'show' / 'highlight'. A room referred "
+    "to by NAME (e.g. 'the Physics room', 'the electrical room') is NOT a room "
+    "number \u2014 resolve it with find_by_category's room_name filter, never "
+    "find_in_room. Use find_in_room ONLY when the user gives an actual room "
+    "NUMBER (e.g. 'room 54'). For example 'show "
     "the largest air handler' = find_extreme then highlight_elements; 'zoom in on "
-    "the equipment in room 54' = find_in_room then zoom_to. find_clearance checks "
+    "the equipment in room 54' = find_in_room then zoom_to; 'zoom in on "
+    "the air terminals in the Physics room on Level 3' = find_by_category "
+    "(category=air_terminals, level='Level 3', room_name='Physics') then zoom_to. "
+    "find_clearance checks "
     "ONE electrical panel's NEC working clearance and draws the zones. Target it "
     "by description when the user names the panel \u2014 e.g. 'the circuit "
     "breaker switchboard' = find_clearance with description='circuit breaker "
@@ -744,6 +758,46 @@ _ACTION_HINTS = (
 def _implies_action(question: str) -> bool:
     q = (question or "").lower()
     return any(h in q for h in _ACTION_HINTS)
+
+
+# Phrases that specifically mean "hide everything else and show only this" \u2014
+# an isolate, not a plain zoom. Anything else in _ACTION_HINTS (zoom / focus /
+# close up / frame) is treated as a zoom.
+_ISOLATE_HINTS = ("isolate", "only it", "just the", "only the", "by itself")
+
+
+def _action_command(question: str) -> str | None:
+    """Classify an action request into the viewer command it should drive.
+
+    Returns 'isolate' when the phrasing asks to see only the target, 'zoom_to'
+    for any other zoom/focus phrasing, or None when the request implies no
+    action. Used to deterministically chain a find into the act command with
+    the ids the find just resolved \u2014 so the act never depends on the model
+    chaining a second tool call or on stale server memory.
+    """
+    q = (question or "").lower()
+    if any(h in q for h in _ISOLATE_HINTS):
+        return "isolate"
+    if any(h in q for h in _ACTION_HINTS):
+        return "zoom_to"
+    return None
+
+
+# Act commands that drive the viewer directly over the command channel
+# (isolate / zoom_to / highlight_rooms). When one ran this turn, the viewer is
+# already in the state the user asked for. The browser's applyResponse() must
+# then NOT reset the view (clearHighlight/showAll) over it \u2014 otherwise it
+# un-does the act (e.g. un-isolates the set, flickering back to the whole
+# building). We signal this with a `drove_viewer` flag on the response, which
+# applyResponse() checks the same way it already checks `drew_clearance`.
+_DROVE_VIEWER_COMMANDS = {"isolate", "zoom_to", "highlight_rooms"}
+
+
+def _drove_viewer(resolved: list[dict]) -> bool:
+    return any(
+        r.get("kind") == "act" and r.get("command") in _DROVE_VIEWER_COMMANDS
+        for r in resolved
+    )
 
 
 # Server-side conversational memory, simplest form: one global "last result"
@@ -855,6 +909,12 @@ async def agent(body: AgentIn):
     # clearance)? If so, suppress the find tools' large-result early-stop so the
     # model keeps its turn to chain into the act tool.
     wants_action = _implies_action(question)
+    # If the phrasing implies a camera action, which command it maps to
+    # (isolate vs zoom_to). We use this to deterministically drive the viewer
+    # with the ids the find resolved THIS turn \u2014 so the act never targets a
+    # previous turn's elements and never depends on the model remembering to
+    # chain a second tool call.
+    action_command = _action_command(question)
 
     # Collected across tool calls so the viewer's result list / CSV match.
     highlighted: dict[str, dict] = {}
@@ -889,12 +949,15 @@ async def agent(body: AgentIn):
         reply = completion.choices[0].message
         if not reply.tool_calls:
             # Don't re-broadcast a highlight over a clearance overlay drawn this
-            # turn (it would isolate() the ids and hide the boxes' context).
+            # turn (it would isolate() the ids and hide the boxes' context), nor
+            # over an act command (isolate / zoom_to / highlight_rooms) that
+            # already drove the viewer \u2014 see _drove_viewer.
             drew_clearance = any(
                 r.get("kind") == "clearance" and r.get("drew")
                 for r in resolved
             )
-            if not drew_clearance:
+            drove_viewer = _drove_viewer(resolved)
+            if not drew_clearance and not drove_viewer:
                 await _broadcast(list(highlighted.keys()))
             _remember(highlighted, resolved)
             log.debug(
@@ -906,6 +969,7 @@ async def agent(body: AgentIn):
                 "reply": reply.content or "(no answer)",
                 "elements": list(highlighted.values()),
                 "drew_clearance": drew_clearance,
+                "drove_viewer": drove_viewer,
             }
 
         messages.append(reply.model_dump(exclude_none=True))
@@ -960,6 +1024,25 @@ async def agent(body: AgentIn):
             )
             return {"reply": tool_error[0], "elements": []}
 
+        # Deterministic find->act chaining. When the user's phrasing implies a
+        # camera action (zoom / isolate / focus) and a find tool resolved ids
+        # THIS turn, drive the viewer ourselves with exactly those fresh ids \u2014
+        # instead of hoping the model chains a second act tool call (flaky at
+        # temperature 0) or reuses stale ids from server memory (which made a
+        # zoom target the PREVIOUS turn's elements). We only do this when the
+        # model did not already drive the viewer this turn, so an explicit
+        # model act call is never double-sent.
+        if (
+            action_command
+            and highlighted
+            and not _drove_viewer(resolved)
+        ):
+            act_ids = list(highlighted.keys())
+            await _broadcast_command(action_command, {"external_ids": act_ids})
+            resolved.append({"kind": "act", "command": action_command,
+                             "count": len(act_ids)})
+            did_highlight = True
+
         # Lever #1: once the viewer has been told to highlight, we have the
         # answer. Stop here and compose the one-line reply ourselves instead of
         # paying for another LLM round-trip just to narrate. (Combined with the
@@ -971,11 +1054,17 @@ async def agent(body: AgentIn):
             # building staying visible. A trailing highlight_elements broadcast
             # would isolate() just the collected ids and hide that context,
             # erasing the boxes \u2014 so skip the re-broadcast in that case.
+            # Likewise for an act command (isolate / zoom_to / highlight_rooms):
+            # it already drove the viewer, and both the trailing re-broadcast
+            # here AND the browser's applyResponse() reset would undo it (e.g.
+            # un-isolate the set). We suppress the re-broadcast and flag
+            # drove_viewer so applyResponse() leaves the view alone.
             drew_clearance = any(
                 r.get("kind") == "clearance" and r.get("drew")
                 for r in resolved
             )
-            if not drew_clearance:
+            drove_viewer = _drove_viewer(resolved)
+            if not drew_clearance and not drove_viewer:
                 await _broadcast(list(highlighted.keys()))
             _remember(highlighted, resolved)
             log.debug(
@@ -988,6 +1077,7 @@ async def agent(body: AgentIn):
                 "reply": _compose_reply(resolved),
                 "elements": list(highlighted.values()),
                 "drew_clearance": drew_clearance,
+                "drove_viewer": drove_viewer,
             }
 
     # Ran out of turns: still show whatever was resolved.
